@@ -1,0 +1,200 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Allocation;
+use App\Models\LoeEntry;
+use App\Models\LoeReport;
+use App\Models\Project;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
+use Tests\Concerns\InteractsWithRoles;
+use Tests\TestCase;
+
+class EmployeeApiTest extends TestCase
+{
+    use InteractsWithRoles;
+    use RefreshDatabase;
+
+    public function test_employee_dashboard_returns_only_the_authenticated_users_reports_and_allocations(): void
+    {
+        $employee = $this->createUserWithRoles(['employee']);
+        $otherEmployee = $this->createUserWithRoles(['employee']);
+        $project = Project::factory()->create(['status' => true]);
+
+        Allocation::factory()->create([
+            'user_id' => $employee->id,
+            'project_id' => $project->id,
+            'percentage' => 40,
+        ]);
+
+        $report = LoeReport::factory()->create([
+            'user_id' => $employee->id,
+            'month' => 4,
+            'year' => 2026,
+            'total_percentage' => 40,
+        ]);
+        LoeEntry::factory()->create([
+            'loe_report_id' => $report->id,
+            'project_id' => $project->id,
+            'percentage' => 40,
+        ]);
+
+        LoeReport::factory()->create([
+            'user_id' => $otherEmployee->id,
+            'month' => 4,
+            'year' => 2026,
+            'total_percentage' => 55,
+        ]);
+
+        $this->actingAs($employee);
+
+        $response = $this->getJson('/api/employee/dashboard');
+
+        $response
+            ->assertOk()
+            ->assertJsonCount(1, 'allocations')
+            ->assertJsonCount(1, 'reports')
+            ->assertJsonPath('reports.0.id', $report->id);
+    }
+
+    public function test_employee_can_list_create_show_update_and_export_loe_reports(): void
+    {
+        Notification::fake();
+
+        $employee = $this->createUserWithRoles(['employee'], ['timezone' => 'Asia/Karachi']);
+        $projectA = Project::factory()->create(['status' => true]);
+        $projectB = Project::factory()->create(['status' => true]);
+
+        $this->actingAs($employee);
+
+        $storeResponse = $this->postJson('/api/employee/reports', [
+            'month' => 12,
+            'year' => 2099,
+            'entries' => [
+                ['project_id' => $projectA->id, 'percentage' => 60],
+                ['project_id' => $projectB->id, 'percentage' => 40],
+            ],
+        ]);
+
+        $storeResponse
+            ->assertCreated()
+            ->assertJsonPath('total_percentage', '100.00');
+
+        $reportId = $storeResponse->json('id');
+
+        $this->getJson('/api/employee/reports')
+            ->assertOk()
+            ->assertJsonCount(1);
+
+        $this->getJson("/api/employee/reports/{$reportId}")
+            ->assertOk()
+            ->assertJsonPath('id', $reportId);
+
+        $this->putJson("/api/employee/reports/{$reportId}", [
+            'entries' => [
+                ['project_id' => $projectA->id, 'percentage' => 70],
+                ['project_id' => $projectB->id, 'percentage' => 20],
+            ],
+        ])
+            ->assertOk()
+            ->assertJsonPath('total_percentage', '90.00');
+
+        $this->get('/api/employee/reports/export?format=pdf')
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+
+        $this->get('/api/employee/reports/export?format=xlsx')
+            ->assertOk()
+            ->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'loe_reports',
+            'description' => 'LoeReport created',
+            'causer_id' => $employee->id,
+        ]);
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'loe_reports',
+            'description' => 'LoeReport updated',
+            'causer_id' => $employee->id,
+        ]);
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'exports',
+            'description' => 'Employee exported LOE report',
+            'causer_id' => $employee->id,
+        ]);
+    }
+
+    public function test_employee_cannot_create_duplicate_monthly_loe_reports(): void
+    {
+        Notification::fake();
+
+        $employee = $this->createUserWithRoles(['employee']);
+        $project = Project::factory()->create(['status' => true]);
+
+        LoeReport::factory()->create([
+            'user_id' => $employee->id,
+            'month' => 12,
+            'year' => 2099,
+            'total_percentage' => 50,
+        ]);
+
+        $this->actingAs($employee);
+
+        $this->postJson('/api/employee/reports', [
+            'month' => 12,
+            'year' => 2099,
+            'entries' => [
+                ['project_id' => $project->id, 'percentage' => 50],
+            ],
+        ])
+            ->assertStatus(422)
+            ->assertSeeText('LOE has already been submitted for this month.');
+    }
+
+    public function test_employee_cannot_view_another_employees_report(): void
+    {
+        $employee = $this->createUserWithRoles(['employee']);
+        $otherEmployee = $this->createUserWithRoles(['employee']);
+        $report = LoeReport::factory()->create([
+            'user_id' => $otherEmployee->id,
+            'month' => 12,
+            'year' => 2099,
+            'total_percentage' => 20,
+        ]);
+
+        $this->actingAs($employee);
+
+        $this->getJson("/api/employee/reports/{$report->id}")
+            ->assertForbidden();
+    }
+
+    public function test_employee_cannot_update_a_locked_report(): void
+    {
+        Notification::fake();
+
+        $employee = $this->createUserWithRoles(['employee'], ['timezone' => 'Asia/Karachi']);
+        $project = Project::factory()->create(['status' => true]);
+        $report = LoeReport::factory()->create([
+            'user_id' => $employee->id,
+            'month' => 1,
+            'year' => 2020,
+            'total_percentage' => 50,
+        ]);
+        LoeEntry::factory()->create([
+            'loe_report_id' => $report->id,
+            'project_id' => $project->id,
+            'percentage' => 50,
+        ]);
+
+        $this->actingAs($employee);
+
+        $this->putJson("/api/employee/reports/{$report->id}", [
+            'entries' => [
+                ['project_id' => $project->id, 'percentage' => 60],
+            ],
+        ])
+            ->assertStatus(422)
+            ->assertSeeText('This LOE is now read-only.');
+    }
+}

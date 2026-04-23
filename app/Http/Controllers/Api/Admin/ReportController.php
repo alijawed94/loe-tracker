@@ -1,0 +1,130 @@
+<?php
+
+namespace App\Http\Controllers\Api\Admin;
+
+use App\Exports\ArrayReportExport;
+use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\ReportFilterRequest;
+use App\Services\ReportService;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\JsonResponse;
+use Maatwebsite\Excel\Facades\Excel;
+use Symfony\Component\HttpFoundation\Response;
+
+class ReportController extends Controller
+{
+    public function __construct(
+        protected ReportService $reportService,
+    ) {
+    }
+
+    public function index(ReportFilterRequest $request): JsonResponse
+    {
+        [$month, $year] = $this->resolvePeriod($request);
+
+        return response()->json([
+            'employee_monthly' => $this->reportService->employeeMonthly($month, $year, $request->validated('user_id')),
+            'employee_yearly' => $this->reportService->employeeYearly($year, $request->validated('user_id')),
+            'project_summary' => $this->reportService->projectSummary($month, $year, $request->validated('project_id')),
+            'missing_submissions' => $this->reportService->missingSubmissions($month, $year),
+            'allocation_variance' => $this->reportService->allocationVariance($month, $year, $request->validated('user_id')),
+        ]);
+    }
+
+    public function export(ReportFilterRequest $request): Response
+    {
+        [$month, $year] = $this->resolvePeriod($request);
+        $type = $request->validated('type', 'employee-monthly');
+        $format = $request->validated('format', 'pdf');
+
+        [$title, $rows] = match ($type) {
+            'employee-yearly' => ['Employee Yearly Summary', $this->flattenYearlyRows($this->reportService->employeeYearly($year, $request->validated('user_id')))],
+            'project-summary' => ['Project Monthly Summary', collect($this->reportService->projectSummary($month, $year, $request->validated('project_id')))],
+            'missing-submissions' => ['Missing Submissions', collect($this->reportService->missingSubmissions($month, $year))],
+            'allocation-variance' => ['Allocation Variance', $this->flattenVarianceRows($this->reportService->allocationVariance($month, $year, $request->validated('user_id')))],
+            default => ['Employee Monthly Summary', $this->flattenMonthlyRows($this->reportService->employeeMonthly($month, $year, $request->validated('user_id')))],
+        };
+
+        $headings = array_keys($rows->first() ?? ['No data' => '']);
+
+        if ($format === 'xlsx') {
+            activity('exports')
+                ->causedBy($request->user())
+                ->withProperties([
+                    'scope' => 'admin',
+                    'type' => $type,
+                    'format' => 'xlsx',
+                    'month' => $month,
+                    'year' => $year,
+                ])
+                ->event('exported')
+                ->log('Admin exported report');
+
+            return Excel::download(new ArrayReportExport($headings, $rows), str($title)->slug().'.xlsx');
+        }
+
+        $pdf = Pdf::loadView('exports.report', [
+            'title' => $title,
+            'subtitle' => sprintf('Generated for %02d/%04d', $month, $year),
+            'headings' => $headings,
+            'rows' => $rows,
+        ]);
+
+        activity('exports')
+            ->causedBy($request->user())
+            ->withProperties([
+                'scope' => 'admin',
+                'type' => $type,
+                'format' => 'pdf',
+                'month' => $month,
+                'year' => $year,
+            ])
+            ->event('exported')
+            ->log('Admin exported report');
+
+        return $pdf->download(str($title)->slug().'.pdf');
+    }
+
+    protected function resolvePeriod(ReportFilterRequest $request): array
+    {
+        return [
+            (int) $request->validated('month', now()->month),
+            (int) $request->validated('year', now()->year),
+        ];
+    }
+
+    protected function flattenMonthlyRows($reports)
+    {
+        return collect($reports)->flatMap(fn ($report) => collect($report['entries'])->map(fn ($entry) => [
+            'Employee' => $report['employee'],
+            'Employee Code' => $report['employee_code'],
+            'Month' => sprintf('%02d/%04d', $report['month'], $report['year']),
+            'Project' => $entry['project'],
+            'Engagement Type' => $entry['engagement_type'],
+            'Percentage' => $entry['percentage'],
+        ]));
+    }
+
+    protected function flattenYearlyRows($rows)
+    {
+        return collect($rows)->flatMap(fn ($row) => collect($row['monthly_breakdown'])->map(fn ($month) => [
+            'Employee' => $row['employee'],
+            'Employee Code' => $row['employee_code'],
+            'Month' => $month['month'],
+            'Average Total Percentage' => $row['average_total_percentage'],
+            'Monthly Total Percentage' => $month['total_percentage'],
+        ]));
+    }
+
+    protected function flattenVarianceRows($rows)
+    {
+        return collect($rows)->flatMap(fn ($row) => collect($row['rows'])->map(fn ($variance) => [
+            'Employee' => $row['employee'],
+            'Employee Code' => $row['employee_code'],
+            'Project' => $variance['project'],
+            'Allocated Percentage' => $variance['allocated_percentage'],
+            'Actual Percentage' => $variance['actual_percentage'],
+            'Variance' => $variance['variance'],
+        ]));
+    }
+}

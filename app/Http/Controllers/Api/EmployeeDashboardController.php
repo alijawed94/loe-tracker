@@ -1,0 +1,82 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Models\Project;
+use App\Support\LoePeriod;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+
+class EmployeeDashboardController extends Controller
+{
+    public function __invoke(Request $request): JsonResponse
+    {
+        $user = $request->user()->load([
+            'allocations.project',
+            'loeReports.entries.project',
+        ]);
+
+        $now = now($user->timezone);
+        $currentReport = $user->loeReports->first(
+            fn ($report) => $report->month === $now->month && $report->year === $now->year
+        );
+
+        $reports = $user->loeReports
+            ->sortByDesc(fn ($report) => sprintf('%04d-%02d', $report->year, $report->month))
+            ->values()
+            ->map(fn ($report) => [
+                'id' => $report->id,
+                'month' => $report->month,
+                'year' => $report->year,
+                'total_percentage' => (float) $report->total_percentage,
+                'submitted_at' => optional($report->submitted_at)?->toIso8601String(),
+                'is_locked' => LoePeriod::isClosed($report->month, $report->year, $user),
+                'entries' => $report->entries->map(fn ($entry) => [
+                    'id' => $entry->id,
+                    'project_id' => $entry->project_id,
+                    'project_name' => $entry->project?->name,
+                    'percentage' => (float) $entry->percentage,
+                ])->values(),
+            ]);
+
+        return response()->json([
+            'current_period' => [
+                'month' => $now->month,
+                'year' => $now->year,
+                'deadline' => LoePeriod::deadline($now->month, $now->year, $user)->toIso8601String(),
+            ],
+            'current_report' => $currentReport ? [
+                'id' => $currentReport->id,
+                'month' => $currentReport->month,
+                'year' => $currentReport->year,
+                'total_percentage' => (float) $currentReport->total_percentage,
+                'submitted_at' => optional($currentReport->submitted_at)?->toIso8601String(),
+                'is_locked' => LoePeriod::isClosed($currentReport->month, $currentReport->year, $user),
+                'entries' => $currentReport->entries->map(fn ($entry) => [
+                    'id' => $entry->id,
+                    'project_id' => $entry->project_id,
+                    'project_name' => $entry->project?->name,
+                    'percentage' => (float) $entry->percentage,
+                ])->values(),
+            ] : null,
+            'reports' => $reports,
+            'allocations' => $user->allocations->map(fn ($allocation) => [
+                'id' => $allocation->id,
+                'project_id' => $allocation->project_id,
+                'project_name' => $allocation->project?->name,
+                'percentage' => (float) $allocation->percentage,
+            ])->values(),
+            'projects' => Project::query()
+                ->where('status', true)
+                ->orderBy('name')
+                ->get()
+                ->map(fn ($project) => [
+                    'id' => $project->id,
+                    'name' => $project->name,
+                    'engagement' => $project->engagement,
+                    'engagement_type' => $project->engagement_type,
+                ]),
+        ]);
+    }
+}

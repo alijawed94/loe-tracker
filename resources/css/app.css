@@ -1,0 +1,64 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+@source '../**/*.jsx';
+
+@theme {
+    --font-sans: 'Plus Jakarta Sans', 'Segoe UI', sans-serif;
+}
+
+:root {
+    --color-ink: #07131f;
+    --color-panel: #10253a;
+    --color-panel-soft: #16304a;
+    --color-card: rgba(9, 26, 43, 0.88);
+    --color-accent: #f59e0b;
+    --color-accent-soft: #fde68a;
+    --color-highlight: #2dd4bf;
+}
+
+body {
+    font-family: var(--font-sans);
+    background:
+        radial-gradient(circle at top left, rgba(45, 212, 191, 0.18), transparent 30%),
+        radial-gradient(circle at top right, rgba(245, 158, 11, 0.22), transparent 28%),
+        linear-gradient(180deg, #08131f 0%, #0f2031 100%);
+}
+
+.glass-panel {
+    background: linear-gradient(180deg, rgba(16, 37, 58, 0.92), rgba(7, 19, 31, 0.95));
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    box-shadow: 0 20px 45px rgba(2, 8, 23, 0.35);
+    backdrop-filter: blur(14px);
+}
+
+.field {
+    @apply w-full rounded-2xl border border-slate-700/80 bg-slate-950/40 px-4 py-3 text-sm text-slate-100 outline-none transition;
+}
+
+.field:focus {
+    @apply border-amber-400/70 ring-2 ring-amber-300/20;
+}
+
+.btn {
+    @apply inline-flex items-center justify-center rounded-2xl px-4 py-3 text-sm font-semibold transition;
+}
+
+.btn-primary {
+    @apply bg-amber-400 text-slate-950 hover:bg-amber-300;
+}
+
+.btn-secondary {
+    @apply bg-slate-800 text-slate-100 hover:bg-slate-700;
+}
+
+.btn-danger {
+    @apply bg-rose-500 text-white hover:bg-rose-400;
+}
+
+.metric-card {
+    @apply rounded-3xl border border-white/10 bg-slate-900/50 p-5;
+}
