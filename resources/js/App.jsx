@@ -23,7 +23,7 @@ import {
     UsersIcon,
     XMarkIcon,
 } from '@heroicons/react/24/outline';
-import { useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import Select from 'react-select';
 import { Navigate, Route, Routes, Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
@@ -96,7 +96,17 @@ const employeeNav = [
     { to: '/app/notifications', label: 'Notifications', icon: BellIcon },
 ];
 
+const ToastContext = createContext(null);
+
 export default function App() {
+    return (
+        <ToastProvider>
+            <AppRoutes />
+        </ToastProvider>
+    );
+}
+
+function AppRoutes() {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -127,6 +137,50 @@ export default function App() {
     );
 }
 
+function ToastProvider({ children }) {
+    const [toasts, setToasts] = useState([]);
+
+    const dismiss = useCallback((id) => {
+        setToasts((current) => current.filter((toast) => toast.id !== id));
+    }, []);
+
+    const push = useCallback((type, text, options = {}) => {
+        if (!text) {
+            return;
+        }
+
+        const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const duration = options.duration ?? 4200;
+
+        setToasts((current) => [...current, { id, type, text }]);
+        window.setTimeout(() => dismiss(id), duration);
+    }, [dismiss]);
+
+    const value = useMemo(() => ({
+        success: (text, options) => push('success', text, options),
+        error: (text, options) => push('error', text, options),
+        info: (text, options) => push('info', text, options),
+        dismiss,
+    }), [dismiss, push]);
+
+    return (
+        <ToastContext.Provider value={value}>
+            {children}
+            <ToastViewport onDismiss={dismiss} toasts={toasts} />
+        </ToastContext.Provider>
+    );
+}
+
+function useToast() {
+    const context = useContext(ToastContext);
+
+    if (!context) {
+        throw new Error('useToast must be used within a ToastProvider.');
+    }
+
+    return context;
+}
+
 function HomeRedirect({ user }) {
     if (!user) return <Navigate to="/login" replace />;
     return <Navigate to={user.roles.includes('admin') ? '/admin/dashboard' : '/app/dashboard'} replace />;
@@ -146,8 +200,8 @@ function ProtectedArea({ user, role, children }) {
 
 function LoginPage({ role, user, onAuth }) {
     const navigate = useNavigate();
+    const toast = useToast();
     const [form, setForm] = useState({ email: '', password: '', remember: true });
-    const [error, setError] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const demoCredentials = role === 'admin'
         ? { email: 'admin@example.com', password: 'Password@1' }
@@ -162,7 +216,6 @@ function LoginPage({ role, user, onAuth }) {
     const submit = async (event) => {
         event.preventDefault();
         setSubmitting(true);
-        setError('');
 
         try {
             await axios.get('/sanctum/csrf-cookie');
@@ -177,7 +230,7 @@ function LoginPage({ role, user, onAuth }) {
                 return;
             }
 
-            setError(response?.data?.message ?? 'Unable to login right now.');
+            toast.error(response?.data?.message ?? 'Unable to login right now.');
         } finally {
             setSubmitting(false);
         }
@@ -252,7 +305,6 @@ function LoginPage({ role, user, onAuth }) {
                             <input type="checkbox" checked={form.remember} onChange={(event) => setForm({ ...form, remember: event.target.checked })} />
                             Keep me signed in
                         </label>
-                        {error ? <p className="rounded-2xl bg-rose-500/15 px-4 py-3 text-sm text-rose-200">{error}</p> : null}
                         <button className="btn btn-primary w-full" disabled={submitting} type="submit">
                             {submitting ? 'Signing in...' : 'Sign in'}
                         </button>
@@ -286,22 +338,18 @@ function LoginPage({ role, user, onAuth }) {
 }
 
 function ForgotPasswordPage({ role }) {
+    const toast = useToast();
     const [email, setEmail] = useState('');
-    const [message, setMessage] = useState('');
-    const [error, setError] = useState('');
     const [submitting, setSubmitting] = useState(false);
 
     const submit = async (event) => {
         event.preventDefault();
         setSubmitting(true);
-        setMessage('');
-        setError('');
-
         try {
             await axios.post(`/api/auth/${role}/forgot-password`, { email });
-            setMessage('If the account exists in this area, a password reset link has been sent.');
+            toast.success('If the account exists in this area, a password reset link has been sent.');
         } catch (requestError) {
-            setError(requestError.response?.data?.message ?? 'Unable to send reset link right now.');
+            toast.error(requestError.response?.data?.message ?? 'Unable to send reset link right now.');
         } finally {
             setSubmitting(false);
         }
@@ -316,8 +364,6 @@ function ForgotPasswordPage({ role }) {
         >
             <form className="space-y-4" onSubmit={submit}>
                 <input className="field" placeholder="Email address" type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
-                {message ? <p className="rounded-2xl brand-badge px-4 py-3 text-sm">{message}</p> : null}
-                {error ? <p className="rounded-2xl bg-rose-500/15 px-4 py-3 text-sm text-rose-200">{error}</p> : null}
                 <button className="btn btn-primary w-full" disabled={submitting} type="submit">
                     {submitting ? 'Sending link...' : 'Send reset link'}
                 </button>
@@ -330,32 +376,28 @@ function ResetPasswordPage({ role }) {
     const { token } = useParams();
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
+    const toast = useToast();
     const [form, setForm] = useState({
         email: searchParams.get('email') ?? '',
         password: '',
         password_confirmation: '',
     });
-    const [message, setMessage] = useState('');
-    const [error, setError] = useState('');
     const [submitting, setSubmitting] = useState(false);
 
     const submit = async (event) => {
         event.preventDefault();
         setSubmitting(true);
-        setMessage('');
-        setError('');
-
         try {
             const response = await axios.post(`/api/auth/${role}/reset-password`, {
                 ...form,
                 token,
             });
-            setMessage(response.data.message);
+            toast.success(response.data.message);
             window.setTimeout(() => {
                 navigate(role === 'admin' ? '/admin/login' : '/login', { replace: true });
             }, 1200);
         } catch (requestError) {
-            setError(requestError.response?.data?.message ?? 'Unable to reset password right now.');
+            toast.error(requestError.response?.data?.message ?? 'Unable to reset password right now.');
         } finally {
             setSubmitting(false);
         }
@@ -372,8 +414,6 @@ function ResetPasswordPage({ role }) {
                 <input className="field" placeholder="Email address" type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} />
                 <input className="field" placeholder="New password" type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} />
                 <input className="field" placeholder="Confirm new password" type="password" value={form.password_confirmation} onChange={(event) => setForm({ ...form, password_confirmation: event.target.value })} />
-                {message ? <p className="rounded-2xl brand-badge px-4 py-3 text-sm">{message}</p> : null}
-                {error ? <p className="rounded-2xl bg-rose-500/15 px-4 py-3 text-sm text-rose-200">{error}</p> : null}
                 <button className="btn btn-primary w-full" disabled={submitting} type="submit">
                     {submitting ? 'Resetting password...' : 'Reset password'}
                 </button>
@@ -487,10 +527,10 @@ function Shell({ title, user, navItems, setUser, children }) {
 }
 
 function EmployeeDashboardPage({ user }) {
+    const toast = useToast();
     const [data, setData] = useState(null);
     const [saving, setSaving] = useState(false);
     const [deletingReportId, setDeletingReportId] = useState(null);
-    const [message, setMessage] = useState('');
     const now = dayjs();
     const [form, setForm] = useState({ month: now.month() + 1, year: now.year(), entries: [createEmptyLoeEntry()] });
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -527,7 +567,6 @@ function EmployeeDashboardPage({ user }) {
     };
 
     const openCreateModal = () => {
-        setMessage('');
         setModalMode('create');
         setEditingReportId(null);
         setSaveIntent('submitted');
@@ -540,7 +579,6 @@ function EmployeeDashboardPage({ user }) {
     };
 
     const openEditModal = (report) => {
-        setMessage('');
         setModalMode('edit');
         setEditingReportId(report.id);
         setSaveIntent(report.status ?? 'submitted');
@@ -567,7 +605,7 @@ function EmployeeDashboardPage({ user }) {
         const sourceReport = data?.reports.find((report) => report.id !== editingReportId);
 
         if (!sourceReport) {
-            setMessage('No previous LOE found to copy.');
+            toast.info('No previous LOE found to copy.');
             return;
         }
 
@@ -575,7 +613,7 @@ function EmployeeDashboardPage({ user }) {
             ...current,
             entries: sourceReport.entries.map(normalizeLoeEntry),
         }));
-        setMessage(`Copied entries from ${dayjs(`${sourceReport.year}-${String(sourceReport.month).padStart(2, '0')}-01`).format('MMMM YYYY')}.`);
+        toast.success(`Copied entries from ${dayjs(`${sourceReport.year}-${String(sourceReport.month).padStart(2, '0')}-01`).format('MMMM YYYY')}.`);
     };
 
     const updateEntry = (index, key, value) => {
@@ -604,7 +642,6 @@ function EmployeeDashboardPage({ user }) {
         event.preventDefault();
         setSaveIntent(nextStatus);
         setSaving(true);
-        setMessage('');
 
         try {
             const payload = {
@@ -621,16 +658,16 @@ function EmployeeDashboardPage({ user }) {
 
             if (isEditing && editingReport) {
                 await axios.put(`/api/employee/reports/${editingReport.id}`, { status: payload.status, entries: payload.entries });
-                setMessage(nextStatus === 'draft' ? 'Draft updated successfully.' : 'LOE updated successfully.');
+                toast.success(nextStatus === 'draft' ? 'Draft updated successfully.' : 'LOE updated successfully.');
             } else {
                 await axios.post('/api/employee/reports', payload);
-                setMessage(nextStatus === 'draft' ? 'Draft saved successfully.' : 'LOE submitted successfully.');
+                toast.success(nextStatus === 'draft' ? 'Draft saved successfully.' : 'LOE submitted successfully.');
             }
 
             await load();
             setIsModalOpen(false);
         } catch (error) {
-            setMessage(error.response?.data?.message ?? 'Unable to save LOE.');
+            toast.error(error.response?.data?.message ?? 'Unable to save LOE.');
         } finally {
             setSaving(false);
         }
@@ -646,15 +683,13 @@ function EmployeeDashboardPage({ user }) {
         }
 
         setDeletingReportId(deleteReportTarget.id);
-        setMessage('');
-
         try {
             await axios.delete(`/api/employee/reports/${deleteReportTarget.id}`);
-            setMessage('LOE deleted successfully.');
+            toast.success('LOE deleted successfully.');
             await load();
             setDeleteReportTarget(null);
         } catch (error) {
-            setMessage(error.response?.data?.message ?? 'Unable to delete LOE.');
+            toast.error(error.response?.data?.message ?? 'Unable to delete LOE.');
         } finally {
             setDeletingReportId(null);
         }
@@ -686,7 +721,6 @@ function EmployeeDashboardPage({ user }) {
                         <a className="btn btn-secondary flex items-center gap-2" href="/api/employee/reports/export?format=xlsx"><ArrowDownTrayIcon className="h-4 w-4" /> <span>Export Excel</span></a>
                     </div>
                 </div>
-                {message ? <p className="mt-5 rounded-2xl bg-white/8 px-4 py-3 text-sm text-slate-200">{message}</p> : null}
             </section>
 
             <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -917,7 +951,7 @@ function EmployeeDashboardPage({ user }) {
                         {!isEditing ? (
                             <button className="btn btn-secondary" disabled={isLocked} onClick={() => {
                                 setForm((current) => ({ ...current, entries: buildPrefillEntries() }));
-                                setMessage('Prefilled entries from current allocations.');
+                                toast.success('Prefilled entries from current allocations.');
                             }} type="button">Use Allocations</button>
                         ) : null}
                         <button className="btn btn-secondary" disabled={isLocked} onClick={copyPreviousMonth} type="button">Copy Last Month</button>
@@ -938,7 +972,6 @@ function EmployeeDashboardPage({ user }) {
                         </div>
                     ) : null}
                     {isLocked ? <p className="rounded-2xl brand-badge-soft px-4 py-3 text-sm">This report is read-only because the selected month has already closed.</p> : null}
-                    {message && isModalOpen ? <p className="rounded-2xl bg-white/8 px-4 py-3 text-sm text-slate-200">{message}</p> : null}
                 </form>
             </Modal>
 
@@ -950,35 +983,26 @@ function EmployeeDashboardPage({ user }) {
                 onPosted={load}
             />
 
-            <Modal isOpen={Boolean(deleteReportTarget)} title="Delete LOE" onClose={() => setDeleteReportTarget(null)}>
-                {deleteReportTarget ? (
-                    <div className="space-y-4">
-                        <p className="text-slate-200">
-                            Delete the LOE report for {dayjs(`${deleteReportTarget.year}-${String(deleteReportTarget.month).padStart(2, '0')}-01`).format('MMMM YYYY')}?
-                        </p>
-                        {deleteReportTarget.is_locked ? (
-                            <p className="rounded-2xl bg-rose-500/15 px-4 py-3 text-sm text-rose-200">
-                                This LOE is from a closed period and will be permanently removed.
-                            </p>
-                        ) : null}
-                        <div className="flex justify-end gap-3">
-                            <button className="btn btn-secondary" onClick={() => setDeleteReportTarget(null)} type="button">Cancel</button>
-                            <button className="btn btn-danger" disabled={deletingReportId === deleteReportTarget.id} onClick={confirmDeleteReport} type="button">
-                                {deletingReportId === deleteReportTarget.id ? 'Deleting...' : 'Delete LOE'}
-                            </button>
-                        </div>
-                    </div>
-                ) : null}
-            </Modal>
+            <ConfirmActionModal
+                busy={deletingReportId === deleteReportTarget?.id}
+                checkboxLabel="I understand this LOE will be permanently deleted."
+                confirmLabel="Delete LOE"
+                isOpen={Boolean(deleteReportTarget)}
+                message={deleteReportTarget ? `Delete the LOE report for ${dayjs(`${deleteReportTarget.year}-${String(deleteReportTarget.month).padStart(2, '0')}-01`).format('MMMM YYYY')}?` : ''}
+                onClose={() => setDeleteReportTarget(null)}
+                onConfirm={confirmDeleteReport}
+                title="Delete LOE"
+                warning={deleteReportTarget?.is_locked ? 'This LOE is from a closed period and will be permanently removed.' : null}
+            />
         </div>
     );
 }
 
 function EmployeeHistoryPage({ user }) {
+    const toast = useToast();
     const [data, setData] = useState(null);
     const [saving, setSaving] = useState(false);
     const [deletingReportId, setDeletingReportId] = useState(null);
-    const [message, setMessage] = useState('');
     const [form, setForm] = useState({ month: dayjs().month() + 1, year: dayjs().year(), entries: [createEmptyLoeEntry()] });
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingReportId, setEditingReportId] = useState(null);
@@ -1003,7 +1027,6 @@ function EmployeeHistoryPage({ user }) {
     const liveWarnings = getLoeWarnings(Number(totalPercentage), allocationTotal);
 
     const openEditModal = (report) => {
-        setMessage('');
         setEditingReportId(report.id);
         setSaveIntent(report.status ?? 'submitted');
         setForm({
@@ -1026,7 +1049,7 @@ function EmployeeHistoryPage({ user }) {
         const sourceReport = data?.reports.find((report) => report.id !== editingReportId);
 
         if (!sourceReport) {
-            setMessage('No previous LOE found to copy.');
+            toast.info('No previous LOE found to copy.');
             return;
         }
 
@@ -1034,7 +1057,7 @@ function EmployeeHistoryPage({ user }) {
             ...current,
             entries: sourceReport.entries.map(normalizeLoeEntry),
         }));
-        setMessage(`Copied entries from ${dayjs(`${sourceReport.year}-${String(sourceReport.month).padStart(2, '0')}-01`).format('MMMM YYYY')}.`);
+        toast.success(`Copied entries from ${dayjs(`${sourceReport.year}-${String(sourceReport.month).padStart(2, '0')}-01`).format('MMMM YYYY')}.`);
     };
 
     const updateEntry = (index, key, value) => {
@@ -1067,7 +1090,6 @@ function EmployeeHistoryPage({ user }) {
 
         setSaveIntent(nextStatus);
         setSaving(true);
-        setMessage('');
 
         try {
             await axios.put(`/api/employee/reports/${editingReport.id}`, {
@@ -1080,11 +1102,11 @@ function EmployeeHistoryPage({ user }) {
                 })),
             });
 
-            setMessage(nextStatus === 'draft' ? 'Draft updated successfully.' : 'LOE updated successfully.');
+            toast.success(nextStatus === 'draft' ? 'Draft updated successfully.' : 'LOE updated successfully.');
             await load();
             setIsModalOpen(false);
         } catch (error) {
-            setMessage(error.response?.data?.message ?? 'Unable to save LOE.');
+            toast.error(error.response?.data?.message ?? 'Unable to save LOE.');
         } finally {
             setSaving(false);
         }
@@ -1100,15 +1122,13 @@ function EmployeeHistoryPage({ user }) {
         }
 
         setDeletingReportId(deleteReportTarget.id);
-        setMessage('');
-
         try {
             await axios.delete(`/api/employee/reports/${deleteReportTarget.id}`);
-            setMessage('LOE deleted successfully.');
+            toast.success('LOE deleted successfully.');
             await load();
             setDeleteReportTarget(null);
         } catch (error) {
-            setMessage(error.response?.data?.message ?? 'Unable to delete LOE.');
+            toast.error(error.response?.data?.message ?? 'Unable to delete LOE.');
         } finally {
             setDeletingReportId(null);
         }
@@ -1125,7 +1145,6 @@ function EmployeeHistoryPage({ user }) {
                         <p className="mt-2 text-slate-300">Review, edit, delete, or discuss your historical LOE submissions here.</p>
                     </div>
                 </div>
-                {message ? <p className="mt-5 rounded-2xl bg-white/8 px-4 py-3 text-sm text-slate-200">{message}</p> : null}
             </section>
 
             <section className="glass-panel rounded-[2rem] p-8">
@@ -1254,7 +1273,6 @@ function EmployeeHistoryPage({ user }) {
                         </div>
                     ) : null}
                     {isLocked ? <p className="rounded-2xl brand-badge-soft px-4 py-3 text-sm">This report is read-only because the selected month has already closed.</p> : null}
-                    {message && isModalOpen ? <p className="rounded-2xl bg-white/8 px-4 py-3 text-sm text-slate-200">{message}</p> : null}
                 </form>
             </Modal>
 
@@ -1266,26 +1284,17 @@ function EmployeeHistoryPage({ user }) {
                 onPosted={load}
             />
 
-            <Modal isOpen={Boolean(deleteReportTarget)} title="Delete LOE" onClose={() => setDeleteReportTarget(null)}>
-                {deleteReportTarget ? (
-                    <div className="space-y-4">
-                        <p className="text-slate-200">
-                            Delete the LOE report for {dayjs(`${deleteReportTarget.year}-${String(deleteReportTarget.month).padStart(2, '0')}-01`).format('MMMM YYYY')}?
-                        </p>
-                        {deleteReportTarget.is_locked ? (
-                            <p className="rounded-2xl bg-rose-500/15 px-4 py-3 text-sm text-rose-200">
-                                This LOE is from a closed period and will be permanently removed.
-                            </p>
-                        ) : null}
-                        <div className="flex justify-end gap-3">
-                            <button className="btn btn-secondary" onClick={() => setDeleteReportTarget(null)} type="button">Cancel</button>
-                            <button className="btn btn-danger" disabled={deletingReportId === deleteReportTarget.id} onClick={confirmDeleteReport} type="button">
-                                {deletingReportId === deleteReportTarget.id ? 'Deleting...' : 'Delete LOE'}
-                            </button>
-                        </div>
-                    </div>
-                ) : null}
-            </Modal>
+            <ConfirmActionModal
+                busy={deletingReportId === deleteReportTarget?.id}
+                checkboxLabel="I understand this LOE will be permanently deleted."
+                confirmLabel="Delete LOE"
+                isOpen={Boolean(deleteReportTarget)}
+                message={deleteReportTarget ? `Delete the LOE report for ${dayjs(`${deleteReportTarget.year}-${String(deleteReportTarget.month).padStart(2, '0')}-01`).format('MMMM YYYY')}?` : ''}
+                onClose={() => setDeleteReportTarget(null)}
+                onConfirm={confirmDeleteReport}
+                title="Delete LOE"
+                warning={deleteReportTarget?.is_locked ? 'This LOE is from a closed period and will be permanently removed.' : null}
+            />
         </div>
     );
 }
@@ -1550,7 +1559,7 @@ function AdminUserLoeReportsPage() {
                                 data.user.employee_code,
                                 data.user.email,
                                 data.user.stream_label,
-                            ].filter(Boolean).join(' • ')}
+                            ].filter(Boolean).join(' � ')}
                         </p>
                     </div>
                     <div className="flex gap-3">
@@ -1659,7 +1668,7 @@ function AdminUserLoeReportsPage() {
             <FeedbackThreadModal
                 isOpen={Boolean(feedbackReport)}
                 report={feedbackReport}
-                title={feedbackReport ? `Feedback for ${data.user.name} • ${dayjs(`${feedbackReport.year}-${String(feedbackReport.month).padStart(2, '0')}-01`).format('MMMM YYYY')}` : 'Feedback'}
+                title={feedbackReport ? `Feedback for ${data.user.name} � ${dayjs(`${feedbackReport.year}-${String(feedbackReport.month).padStart(2, '0')}-01`).format('MMMM YYYY')}` : 'Feedback'}
                 onClose={() => setFeedbackReport(null)}
                 onPosted={load}
             />
@@ -1727,13 +1736,15 @@ function AdminProjectsPage() {
 }
 
 function AdminAllocationsPage() {
+    const toast = useToast();
     const [allocations, setAllocations] = useState([]);
     const [users, setUsers] = useState([]);
     const [projects, setProjects] = useState([]);
     const [form, setForm] = useState({ user_id: '', project_id: '', percentage: '' });
     const [editingId, setEditingId] = useState(null);
-    const [message, setMessage] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [deletingAllocationId, setDeletingAllocationId] = useState(null);
     const [search, setSearch] = useState('');
     const [selectedProjectFilters, setSelectedProjectFilters] = useState([]);
     const groupedAllocations = useMemo(() => (
@@ -1777,7 +1788,6 @@ function AdminAllocationsPage() {
 
     const submit = async (event) => {
         event.preventDefault();
-        setMessage('');
 
         try {
             if (editingId) {
@@ -1788,10 +1798,10 @@ function AdminAllocationsPage() {
             setForm({ user_id: '', project_id: '', percentage: '' });
             setEditingId(null);
             setIsModalOpen(false);
-            setMessage('Allocation saved.');
+            toast.success('Allocation saved.');
             await load();
         } catch (error) {
-            setMessage(error.response?.data?.message ?? 'Unable to save allocation.');
+            toast.error(error.response?.data?.message ?? 'Unable to save allocation.');
         }
     };
 
@@ -1806,14 +1816,12 @@ function AdminAllocationsPage() {
                     <button className="btn btn-primary flex items-center gap-2" onClick={() => {
                         setEditingId(null);
                         setForm({ user_id: '', project_id: '', percentage: '' });
-                        setMessage('');
                         setIsModalOpen(true);
                     }} type="button">
                         <PlusIcon className="h-4 w-4" />
                         <span>Add allocation</span>
                     </button>
                 </div>
-                {message ? <p className="mt-5 rounded-2xl bg-white/8 px-4 py-3 text-sm text-slate-200">{message}</p> : null}
                 <div className="mt-5 grid gap-3 lg:grid-cols-[1fr_320px_auto]">
                     <input className="field" placeholder="Search by employee name, email, employee code, or project" value={search} onChange={(event) => setSearch(event.target.value)} />
                     <Select
@@ -1868,13 +1876,12 @@ function AdminAllocationsPage() {
                                                     <button className="btn btn-secondary flex items-center gap-2 py-2" onClick={() => {
                                                         setEditingId(allocation.id);
                                                         setForm({ user_id: allocation.user_id, project_id: allocation.project_id, percentage: allocation.percentage });
-                                                        setMessage('');
                                                         setIsModalOpen(true);
                                                     }} type="button">
                                                         <PencilIcon className="h-4 w-4" />
                                                         <span>Edit</span>
                                                     </button>
-                                                    <button className="btn btn-danger flex items-center gap-2 py-2" onClick={async () => { await axios.delete(`/api/admin/allocations/${allocation.id}`); await load(); }} type="button">
+                                                    <button className="btn btn-danger flex items-center gap-2 py-2" onClick={() => setDeleteTarget(allocation)} type="button">
                                                         <TrashIcon className="h-4 w-4" />
                                                         <span>Delete</span>
                                                     </button>
@@ -1908,9 +1915,35 @@ function AdminAllocationsPage() {
                         <CheckCircleIcon className="h-4 w-4" />
                         <span>{editingId ? 'Update allocation' : 'Create allocation'}</span>
                     </button>
-                    {message && isModalOpen ? <p className="text-sm text-slate-300">{message}</p> : null}
                 </form>
             </Modal>
+
+            <ConfirmActionModal
+                busy={deletingAllocationId === deleteTarget?.id}
+                checkboxLabel="I understand this allocation record will be permanently deleted."
+                confirmLabel="Delete Allocation"
+                isOpen={Boolean(deleteTarget)}
+                message={deleteTarget ? `Delete the allocation for ${deleteTarget.user?.name ?? 'this employee'} on ${deleteTarget.project?.name ?? 'this project'}?` : ''}
+                onClose={() => setDeleteTarget(null)}
+                onConfirm={async () => {
+                    if (!deleteTarget) {
+                        return;
+                    }
+
+                    try {
+                        setDeletingAllocationId(deleteTarget.id);
+                        await axios.delete(`/api/admin/allocations/${deleteTarget.id}`);
+                        toast.success('Allocation deleted successfully.');
+                        await load();
+                        setDeleteTarget(null);
+                    } catch (error) {
+                        toast.error(error.response?.data?.message ?? 'Unable to delete allocation.');
+                    } finally {
+                        setDeletingAllocationId(null);
+                    }
+                }}
+                title="Delete Allocation"
+            />
         </div>
     );
 }
@@ -2132,7 +2165,7 @@ function AdminActivityLogsPage() {
                                 <div>
                                     <p className="text-lg font-semibold text-white">{activity.description}</p>
                                     <p className="text-sm text-slate-400">
-                                        {activity.log_name} • {activity.event || 'eventless'} • {dayjs(activity.created_at).format('DD MMM YYYY, hh:mm A')}
+                                        {activity.log_name} � {activity.event || 'eventless'} � {dayjs(activity.created_at).format('DD MMM YYYY, hh:mm A')}
                                     </p>
                                 </div>
                                 <div className="text-sm text-slate-300">
@@ -2143,7 +2176,7 @@ function AdminActivityLogsPage() {
                                 <div className="rounded-2xl bg-slate-900/60 p-4">
                                     <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Subject</p>
                                     <p className="mt-2 text-sm text-slate-200">
-                                        {activity.subject ? `${activity.subject.type} • ${activity.subject.id}` : 'None'}
+                                        {activity.subject ? `${activity.subject.type} � ${activity.subject.id}` : 'None'}
                                     </p>
                                 </div>
                                 <div className="rounded-2xl bg-slate-900/60 p-4">
@@ -2164,7 +2197,7 @@ function AdminActivityLogsPage() {
                                 <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Action</p>
                                 <p className="mt-2 text-lg font-semibold text-white">{selectedActivity.description}</p>
                                 <p className="mt-2 text-sm text-slate-300">
-                                    {humanizeLogName(selectedActivity.log_name)} • {humanizeActivityEvent(selectedActivity.event)} • {dayjs(selectedActivity.created_at).format('DD MMM YYYY, hh:mm A')}
+                                    {humanizeLogName(selectedActivity.log_name)} � {humanizeActivityEvent(selectedActivity.event)} � {dayjs(selectedActivity.created_at).format('DD MMM YYYY, hh:mm A')}
                                 </p>
                             </div>
                             <div className="rounded-2xl bg-slate-900/60 p-4">
@@ -2342,11 +2375,13 @@ function formatActivityValue(value) {
 }
 
 function CrudPage({ title, endpoint, formFactory, fields, searchPlaceholder = 'Search records', listKeys = null, extraRowActions = null }) {
+    const toast = useToast();
     const [rows, setRows] = useState([]);
     const [form, setForm] = useState(formFactory());
     const [editingId, setEditingId] = useState(null);
-    const [message, setMessage] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [deletingRowId, setDeletingRowId] = useState(null);
     const [search, setSearch] = useState('');
     const singularTitle = singularize(title);
 
@@ -2364,8 +2399,6 @@ function CrudPage({ title, endpoint, formFactory, fields, searchPlaceholder = 'S
 
     const submit = async (event) => {
         event.preventDefault();
-        setMessage('');
-
         const payload = {
             ...form,
             status: true,
@@ -2381,10 +2414,10 @@ function CrudPage({ title, endpoint, formFactory, fields, searchPlaceholder = 'S
             setForm(formFactory());
             setEditingId(null);
             setIsModalOpen(false);
-            setMessage(`${singularTitle} saved successfully.`);
+            toast.success(`${singularTitle} saved successfully.`);
             await load();
         } catch (error) {
-            setMessage(error.response?.data?.message ?? `Unable to save ${title.toLowerCase()}.`);
+            toast.error(error.response?.data?.message ?? `Unable to save ${title.toLowerCase()}.`);
         }
     };
 
@@ -2398,14 +2431,12 @@ function CrudPage({ title, endpoint, formFactory, fields, searchPlaceholder = 'S
                     <button className="btn btn-primary flex items-center gap-2" onClick={() => {
                         setEditingId(null);
                         setForm(formFactory());
-                        setMessage('');
                         setIsModalOpen(true);
                     }} type="button">
                         <PlusIcon className="h-4 w-4" />
                         <span>Add {singularTitle}</span>
                     </button>
                 </div>
-                {message ? <p className="mt-5 rounded-2xl bg-white/8 px-4 py-3 text-sm text-slate-200">{message}</p> : null}
                 <div className="mt-5 flex flex-wrap gap-3">
                     <input className="field flex-1 min-w-72" placeholder={searchPlaceholder} value={search} onChange={(event) => setSearch(event.target.value)} />
                     <button className="btn btn-secondary flex items-center gap-2" onClick={() => setSearch('')} type="button">
@@ -2448,13 +2479,12 @@ function CrudPage({ title, endpoint, formFactory, fields, searchPlaceholder = 'S
                                                         roles: row.roles ? row.roles.map((role) => role.name) : formFactory().roles,
                                                         password: '',
                                                     });
-                                                    setMessage('');
                                                     setIsModalOpen(true);
                                                 }} type="button">
                                                     <PencilIcon className="h-4 w-4" />
                                                     <span>Edit</span>
                                                 </button>
-                                                <button className="btn btn-danger flex items-center gap-2 py-2" onClick={async () => { await axios.delete(`${endpoint}/${row.id}`); await load(); }} type="button">
+                                                <button className="btn btn-danger flex items-center gap-2 py-2" onClick={() => setDeleteTarget(row)} type="button">
                                                     <TrashIcon className="h-4 w-4" />
                                                     <span>Archive</span>
                                                 </button>
@@ -2515,9 +2545,35 @@ function CrudPage({ title, endpoint, formFactory, fields, searchPlaceholder = 'S
                         <CheckCircleIcon className="h-4 w-4" />
                         <span>{editingId ? 'Update' : 'Create'} {singularTitle}</span>
                     </button>
-                    {message && isModalOpen ? <p className="text-sm text-slate-300">{message}</p> : null}
                 </form>
             </Modal>
+
+            <ConfirmActionModal
+                busy={deletingRowId === deleteTarget?.id}
+                checkboxLabel={`I understand this ${singularTitle.toLowerCase()} record will be archived.`}
+                confirmLabel={`Archive ${singularTitle}`}
+                isOpen={Boolean(deleteTarget)}
+                message={deleteTarget ? `Archive ${singularTitle.toLowerCase()}${deleteTarget.name ? ` "${deleteTarget.name}"` : ''}?` : ''}
+                onClose={() => setDeleteTarget(null)}
+                onConfirm={async () => {
+                    if (!deleteTarget) {
+                        return;
+                    }
+
+                    try {
+                        setDeletingRowId(deleteTarget.id);
+                        await axios.delete(`${endpoint}/${deleteTarget.id}`);
+                        toast.success(`${singularTitle} archived successfully.`);
+                        await load();
+                        setDeleteTarget(null);
+                    } catch (error) {
+                        toast.error(error.response?.data?.message ?? `Unable to archive ${singularTitle.toLowerCase()}.`);
+                    } finally {
+                        setDeletingRowId(null);
+                    }
+                }}
+                title={`Archive ${singularTitle}`}
+            />
         </div>
     );
 }
@@ -2713,17 +2769,16 @@ function ReportTable({ title, rows, hiddenHeaders = [], getRowActions = null }) 
 }
 
 function FeedbackThreadModal({ isOpen, report, title, onClose, onPosted }) {
+    const toast = useToast();
     const [feedback, setFeedback] = useState([]);
     const [message, setMessage] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
 
     useEffect(() => {
         if (!isOpen || !report) {
             setFeedback([]);
             setMessage('');
-            setError('');
             return;
         }
 
@@ -2731,9 +2786,9 @@ function FeedbackThreadModal({ isOpen, report, title, onClose, onPosted }) {
         setLoading(true);
         axios.get(`/api/loe-reports/${report.id}/feedback`)
             .then((response) => setFeedback(response.data.feedback ?? []))
-            .catch(() => setError('Unable to load feedback right now.'))
+            .catch(() => toast.error('Unable to load feedback right now.'))
             .finally(() => setLoading(false));
-    }, [isOpen, report]);
+    }, [isOpen, report, toast]);
 
     if (!report) {
         return null;
@@ -2742,15 +2797,15 @@ function FeedbackThreadModal({ isOpen, report, title, onClose, onPosted }) {
     const submit = async (event) => {
         event.preventDefault();
         setSubmitting(true);
-        setError('');
 
         try {
             const response = await axios.post(`/api/loe-reports/${report.id}/feedback`, { message });
             setFeedback((current) => [...current, response.data]);
             setMessage('');
+            toast.success('Feedback sent successfully.');
             await onPosted?.();
         } catch (requestError) {
-            setError(requestError.response?.data?.message ?? 'Unable to send feedback right now.');
+            toast.error(requestError.response?.data?.message ?? 'Unable to send feedback right now.');
         } finally {
             setSubmitting(false);
         }
@@ -2804,7 +2859,6 @@ function FeedbackThreadModal({ isOpen, report, title, onClose, onPosted }) {
                         value={message}
                         onChange={(event) => setMessage(event.target.value)}
                     />
-                    {error ? <p className="rounded-2xl bg-rose-500/15 px-4 py-3 text-sm text-rose-200">{error}</p> : null}
                     <div className="flex justify-end">
                         <button className="btn btn-primary" disabled={submitting || !message.trim()} type="submit">
                             {submitting ? 'Sending...' : 'Send feedback'}
@@ -2813,6 +2867,24 @@ function FeedbackThreadModal({ isOpen, report, title, onClose, onPosted }) {
                 </form>
             </div>
         </Modal>
+    );
+}
+
+function ToastViewport({ toasts, onDismiss }) {
+    return (
+        <div aria-live="polite" className="toast-viewport" role="status">
+            {toasts.map((toast) => (
+                <article className={clsx('toast-card', `toast-${toast.type}`)} key={toast.id}>
+                    <div className="toast-copy">
+                        <p className="toast-title">{toast.type === 'error' ? 'Error' : toast.type === 'success' ? 'Success' : 'Notice'}</p>
+                        <p className="toast-message">{toast.text}</p>
+                    </div>
+                    <button aria-label="Dismiss notification" className="toast-close" onClick={() => onDismiss(toast.id)} type="button">
+                        <XMarkIcon className="h-4 w-4" />
+                    </button>
+                </article>
+            ))}
+        </div>
     );
 }
 
@@ -2836,6 +2908,49 @@ function Modal({ isOpen, title, onClose, children }) {
                 <div className="mt-6">{children}</div>
             </div>
         </div>
+    );
+}
+
+function ConfirmActionModal({
+    isOpen,
+    title,
+    message,
+    checkboxLabel = 'I understand this action cannot be undone.',
+    warning = null,
+    confirmLabel = 'Proceed',
+    busy = false,
+    onClose,
+    onConfirm,
+}) {
+    const [confirmed, setConfirmed] = useState(false);
+
+    useEffect(() => {
+        if (!isOpen) {
+            setConfirmed(false);
+        }
+    }, [isOpen]);
+
+    return (
+        <Modal isOpen={isOpen} title={title} onClose={onClose}>
+            <div className="space-y-4">
+                <p className="text-slate-200">{message}</p>
+                {warning ? (
+                    <p className="rounded-2xl bg-rose-500/15 px-4 py-3 text-sm text-rose-200">
+                        {warning}
+                    </p>
+                ) : null}
+                <label className="flex items-start gap-3 rounded-2xl border border-white/10 bg-slate-950/25 px-4 py-3 text-sm text-slate-200">
+                    <input checked={confirmed} className="mt-0.5" onChange={(event) => setConfirmed(event.target.checked)} type="checkbox" />
+                    <span>{checkboxLabel}</span>
+                </label>
+                <div className="flex justify-end gap-3">
+                    <button className="btn btn-secondary" onClick={onClose} type="button">Cancel</button>
+                    <button className="btn btn-danger" disabled={!confirmed || busy} onClick={onConfirm} type="button">
+                        {busy ? 'Processing...' : confirmLabel}
+                    </button>
+                </div>
+            </div>
+        </Modal>
     );
 }
 
