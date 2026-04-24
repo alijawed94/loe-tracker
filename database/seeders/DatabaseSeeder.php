@@ -30,59 +30,35 @@ class DatabaseSeeder extends Seeder
             ['label' => 'Employee']
         );
 
-        $superAdmin = User::query()->firstOrCreate(
-            ['email' => 'ali.jawed@pixeledge.io'],
+        $admin = User::query()->firstOrCreate(
+            ['email' => 'admin@example.com'],
             [
-                'name' => 'Ali Jawed',
-                'employee_code' => 'EMP-001',
-                'designation' => 'Super Admin',
+                'name' => 'System Admin',
+                'employee_code' => 'ADM-001',
+                'designation' => 'Administrator',
                 'stream' => 'admin',
                 'timezone' => 'Asia/Karachi',
                 'status' => true,
-                'password' => Hash::make('Password@123'),
+                'password' => Hash::make('Password@1'),
                 'email_verified_at' => now(),
             ]
         );
-        $superAdmin->roles()->syncWithoutDetaching([$adminRole->id, $employeeRole->id]);
+        $admin->roles()->syncWithoutDetaching([$adminRole->id]);
 
-        $employees = collect([
+        $employee = User::query()->firstOrCreate(
+            ['email' => 'employee@example.com'],
             [
-                'name' => 'Sara Khan',
-                'email' => 'sara.khan@example.com',
-                'employee_code' => 'EMP-002',
-                'designation' => 'Senior Engineer',
+                'name' => 'Sample Employee',
+                'employee_code' => 'EMP-001',
+                'designation' => 'Software Engineer',
                 'stream' => 'engineering',
-            ],
-            [
-                'name' => 'Usman Tariq',
-                'email' => 'usman.tariq@example.com',
-                'employee_code' => 'EMP-003',
-                'designation' => 'Product Designer',
-                'stream' => 'experience',
-            ],
-            [
-                'name' => 'Hina Faisal',
-                'email' => 'hina.faisal@example.com',
-                'employee_code' => 'EMP-004',
-                'designation' => 'Engineering Manager',
-                'stream' => 'engineering',
-            ],
-        ])->map(function (array $employee) use ($employeeRole) {
-            $user = User::query()->firstOrCreate(
-                ['email' => $employee['email']],
-                [
-                    ...$employee,
-                    'timezone' => 'Asia/Karachi',
-                    'status' => true,
-                    'password' => Hash::make('Password@123'),
-                    'email_verified_at' => now(),
-                ]
-            );
-
-            $user->roles()->syncWithoutDetaching([$employeeRole->id]);
-
-            return $user;
-        });
+                'timezone' => 'Asia/Karachi',
+                'status' => true,
+                'password' => Hash::make('Password@1'),
+                'email_verified_at' => now(),
+            ]
+        );
+        $employee->roles()->syncWithoutDetaching([$employeeRole->id]);
 
         $projectCatalog = collect([
             ['name' => 'AngelCatalyst (ACA) - Product', 'engagement' => 'AngelCatalyst (ACA)', 'engagement_type' => 'product'],
@@ -128,57 +104,41 @@ class DatabaseSeeder extends Seeder
             ->map(fn (array $project) => Project::query()->firstOrCreate(['name' => $project['name']], $project));
 
         $allocationMatrix = [
-            'EMP-002' => [
-                'EcoTours - Project' => 50,
-                'PixelEdge Platform - Product' => 30,
-                'Recruiting - HR & Admin' => 20,
-            ],
-            'EMP-003' => [
-                'Bookflow - Product' => 40,
-                'Content Marketing - M & S' => 35,
-                'Onboarding - HR & Admin' => 25,
-            ],
-            'EMP-004' => [
-                'LoanEdge - Product' => 45,
-                'TRI Data Governance - Project' => 35,
-                'General HR - HR & Admin' => 20,
-            ],
+            'EcoTours - Project' => 50,
+            'PixelEdge Platform - Product' => 30,
+            'Recruiting - HR & Admin' => 20,
         ];
 
-        foreach ($employees as $employee) {
-            foreach ($allocationMatrix[$employee->employee_code] as $projectName => $percentage) {
-                Allocation::query()->firstOrCreate(
-                    [
-                        'user_id' => $employee->id,
-                        'project_id' => $projects->firstWhere('name', $projectName)->id,
-                    ],
-                    ['percentage' => $percentage]
-                );
-            }
+        foreach ($allocationMatrix as $projectName => $percentage) {
+            Allocation::query()->firstOrCreate(
+                [
+                    'user_id' => $employee->id,
+                    'project_id' => $projects->firstWhere('name', $projectName)->id,
+                ],
+                ['percentage' => $percentage]
+            );
         }
 
         $period = CarbonImmutable::now('Asia/Karachi');
 
-        foreach ($employees as $employee) {
-            $report = LoeReport::query()->firstOrCreate(
-                [
-                    'user_id' => $employee->id,
-                    'month' => $period->month,
-                    'year' => $period->year,
-                ],
-                [
-                    'total_percentage' => 100,
-                    'submitted_at' => now(),
-                ]
-            );
+        $report = LoeReport::query()->firstOrCreate(
+            [
+                'user_id' => $employee->id,
+                'month' => $period->month,
+                'year' => $period->year,
+            ],
+            [
+                'total_percentage' => 100,
+                'submitted_at' => now(),
+            ]
+        );
 
-            if ($report->entries()->doesntExist()) {
-                foreach ($allocationMatrix[$employee->employee_code] as $projectName => $percentage) {
-                    $report->entries()->create([
-                        'project_id' => $projects->firstWhere('name', $projectName)->id,
-                        'percentage' => $percentage,
-                    ]);
-                }
+        if ($report->entries()->doesntExist()) {
+            foreach ($allocationMatrix as $projectName => $percentage) {
+                $report->entries()->create([
+                    'project_id' => $projects->firstWhere('name', $projectName)->id,
+                    'percentage' => $percentage,
+                ]);
             }
         }
     }

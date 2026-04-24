@@ -24,7 +24,8 @@ class RoleAwareResetPasswordNotification extends Notification
      */
     public function via(object $notifiable): array
     {
-        return ['mail'];
+        // Email delivery is temporarily disabled until a mail service is configured.
+        return ['database'];
     }
 
     /**
@@ -51,6 +52,8 @@ class RoleAwareResetPasswordNotification extends Notification
     public function toArray(object $notifiable): array
     {
         return [
+            'title' => 'Password reset requested',
+            'message' => 'A password reset request was created for your account.',
             'role' => $this->role,
         ];
     }

@@ -23,7 +23,8 @@ class LoeReminderNotification extends Notification
      */
     public function via(object $notifiable): array
     {
-        return ['mail', 'database'];
+        // Email delivery is temporarily disabled until a mail service is configured.
+        return ['database'];
     }
 
     /**

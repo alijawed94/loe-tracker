@@ -9,7 +9,9 @@ import {
     ChatBubbleLeftRightIcon,
     ClipboardDocumentListIcon,
     ClockIcon,
+    ExclamationTriangleIcon,
     FolderIcon,
+    ShieldCheckIcon,
     PencilSquareIcon,
     PlusIcon,
     Squares2X2Icon,
@@ -101,6 +103,9 @@ function LoginPage({ role, user, onAuth }) {
     const [form, setForm] = useState({ email: '', password: '', remember: true });
     const [error, setError] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const demoCredentials = role === 'admin'
+        ? { email: 'admin@example.com', password: 'Password@1' }
+        : { email: 'employee@example.com', password: 'Password@1' };
 
     useEffect(() => {
         if (user?.roles.includes(role)) {
@@ -134,18 +139,53 @@ function LoginPage({ role, user, onAuth }) {
 
     return (
         <div className="flex min-h-screen items-center justify-center px-4 py-10">
-            <div className="grid w-full max-w-6xl gap-8 lg:grid-cols-[1.1fr_0.9fr]">
-                <section className="glass-panel hidden rounded-[2rem] p-10 lg:block">
-                    <div className="max-w-xl space-y-6">
+            <div className="grid w-full max-w-6xl gap-8 lg:grid-cols-[1.08fr_0.92fr]">
+                <section className="glass-panel hidden rounded-[2rem] p-8 lg:block xl:p-10">
+                    <div className="space-y-5">
                         <span className="inline-flex rounded-full brand-badge px-4 py-2 text-xs uppercase tracking-[0.3em]">
                             Level of Effort Tracker
                         </span>
-                        <h1 className="text-5xl font-semibold leading-tight text-white">
+                        <h1 className="text-4xl font-semibold leading-tight text-white xl:text-[2.8rem]">
                             Track capacity, allocations, and monthly effort with one clean workflow.
                         </h1>
-                        <p className="text-lg text-slate-300">
-                            Separate employee and admin experiences, thoughtful dashboards, and exports for monthly reviews built into the same Laravel and React app.
+                        <p className="text-base leading-7 text-slate-300">
+                            A shared workspace for employees and admins to capture monthly LOE, review allocation coverage, improve submission compliance, and keep utilization reporting reliable.
                         </p>
+                        <div className="grid gap-4 pt-2">
+                            <div className="rounded-3xl border border-white/10 bg-slate-950/25 p-5">
+                                <div className="flex items-center gap-3">
+                                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[rgba(0,169,158,0.14)] text-[#7ff4e4]">
+                                        <ClipboardDocumentListIcon className="h-5 w-5" />
+                                    </span>
+                                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white">What Employees Can Do</p>
+                                </div>
+                                <p className="mt-2 text-[0.92rem] leading-6 text-slate-300">
+                                    Add monthly LOE submissions, review previous months, respond to admin feedback, track deadlines, and stay aligned with current project allocations.
+                                </p>
+                            </div>
+                            <div className="rounded-3xl border border-white/10 bg-slate-950/25 p-5">
+                                <div className="flex items-center gap-3">
+                                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[rgba(0,169,158,0.14)] text-[#7ff4e4]">
+                                        <ShieldCheckIcon className="h-5 w-5" />
+                                    </span>
+                                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white">What Admins Can Do</p>
+                                </div>
+                                <p className="mt-2 text-[0.92rem] leading-6 text-slate-300">
+                                    Manage users, projects, and allocations, review LOEs, monitor exceptions, inspect activity logs, and analyze project health from a central dashboard.
+                                </p>
+                            </div>
+                            <div className="rounded-3xl border border-white/10 bg-slate-950/25 p-5">
+                                <div className="flex items-center gap-3">
+                                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[rgba(0,169,158,0.14)] text-[#7ff4e4]">
+                                        <ExclamationTriangleIcon className="h-5 w-5" />
+                                    </span>
+                                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white">Why It Matters</p>
+                                </div>
+                                <p className="mt-2 text-[0.92rem] leading-6 text-slate-300">
+                                    Cleaner LOE capture means better utilization visibility, healthier project planning, stronger follow-up on missing submissions, and more dependable management reporting.
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 </section>
 
@@ -172,10 +212,18 @@ function LoginPage({ role, user, onAuth }) {
                         </button>
                     </form>
 
-                    <div className="mt-4 flex items-center justify-between gap-3 text-sm">
-                        <Link className="brand-link" to={role === 'admin' ? '/admin/forgot-password' : '/forgot-password'}>
-                            Forgot password?
-                        </Link>
+                    <div className="mt-5 rounded-3xl border border-white/10 bg-slate-950/25 p-4 text-sm text-slate-300">
+                        <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Demo Credentials</p>
+                        <p className="mt-2">
+                            <span className="text-slate-400">Email:</span>
+                            {' '}
+                            <span className="text-white">{demoCredentials.email}</span>
+                        </p>
+                        <p className="mt-1">
+                            <span className="text-slate-400">Password:</span>
+                            {' '}
+                            <span className="text-white">{demoCredentials.password}</span>
+                        </p>
                     </div>
 
                     <p className="mt-6 text-sm text-slate-400">
