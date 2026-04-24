@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Allocation;
+use App\Models\LoeFeedback;
 use App\Models\LoeReport;
 use App\Models\Project;
 use App\Models\Role;
@@ -21,44 +22,76 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        $timezone = 'Asia/Karachi';
+        $password = Hash::make('Password@1');
+        $currentPeriod = CarbonImmutable::now($timezone)->startOfMonth();
+        $previousPeriod = $currentPeriod->subMonth();
+
         $adminRole = Role::query()->firstOrCreate(
             ['name' => 'admin'],
             ['label' => 'Admin']
         );
+
         $employeeRole = Role::query()->firstOrCreate(
             ['name' => 'employee'],
             ['label' => 'Employee']
         );
 
-        $admin = User::query()->firstOrCreate(
-            ['email' => 'admin@example.com'],
-            [
-                'name' => 'System Admin',
-                'employee_code' => 'ADM-001',
-                'designation' => 'Administrator',
-                'stream' => 'admin',
-                'timezone' => 'Asia/Karachi',
-                'status' => true,
-                'password' => Hash::make('Password@1'),
-                'email_verified_at' => now(),
-            ]
-        );
-        $admin->roles()->syncWithoutDetaching([$adminRole->id]);
+        $admin = User::query()->create([
+            'name' => 'System Admin',
+            'email' => 'admin@example.com',
+            'employee_code' => 'ADM-001',
+            'designation' => 'Administrator',
+            'stream' => 'admin',
+            'timezone' => $timezone,
+            'status' => true,
+            'password' => $password,
+            'email_verified_at' => now(),
+        ]);
+        $admin->roles()->sync([$adminRole->id]);
 
-        $employee = User::query()->firstOrCreate(
-            ['email' => 'employee@example.com'],
+        $employees = collect([
             [
                 'name' => 'Sample Employee',
+                'email' => 'employee@example.com',
                 'employee_code' => 'EMP-001',
                 'designation' => 'Software Engineer',
                 'stream' => 'engineering',
-                'timezone' => 'Asia/Karachi',
+            ],
+            [
+                'name' => 'Amna Shahid',
+                'email' => 'amna.shahid@example.com',
+                'employee_code' => 'EMP-002',
+                'designation' => 'Product Designer',
+                'stream' => 'experience',
+            ],
+            [
+                'name' => 'Bilal Ahmed',
+                'email' => 'bilal.ahmed@example.com',
+                'employee_code' => 'EMP-003',
+                'designation' => 'Engineering Lead',
+                'stream' => 'engineering',
+            ],
+            [
+                'name' => 'Sana Rafiq',
+                'email' => 'sana.rafiq@example.com',
+                'employee_code' => 'EMP-004',
+                'designation' => 'People Operations Specialist',
+                'stream' => 'admin',
+            ],
+        ])->map(function (array $employee) use ($employeeRole, $password, $timezone) {
+            $user = User::query()->create([
+                ...$employee,
+                'timezone' => $timezone,
                 'status' => true,
-                'password' => Hash::make('Password@1'),
+                'password' => $password,
                 'email_verified_at' => now(),
-            ]
-        );
-        $employee->roles()->syncWithoutDetaching([$employeeRole->id]);
+            ]);
+
+            $user->roles()->sync([$employeeRole->id]);
+
+            return $user;
+        })->keyBy('employee_code');
 
         $projectCatalog = collect([
             ['name' => 'AngelCatalyst (ACA) - Product', 'engagement' => 'AngelCatalyst (ACA)', 'engagement_type' => 'product'],
@@ -96,50 +129,192 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $projects = $projectCatalog
-            ->map(fn (array $project) => [
+            ->map(fn (array $project) => Project::query()->create([
                 ...$project,
                 'description' => "{$project['engagement']} seeded project catalogue entry.",
                 'status' => true,
-            ])
-            ->map(fn (array $project) => Project::query()->firstOrCreate(['name' => $project['name']], $project));
+            ]))
+            ->keyBy('name');
 
-        $allocationMatrix = [
-            'EcoTours - Project' => 50,
-            'PixelEdge Platform - Product' => 30,
-            'Recruiting - HR & Admin' => 20,
+        $allocationMap = [
+            'EMP-001' => [
+                'EcoTours - Project' => 50,
+                'PixelEdge Platform - Product' => 30,
+                'Recruiting - HR & Admin' => 20,
+            ],
+            'EMP-002' => [
+                'Bookflow - Product' => 40,
+                'Content Marketing - M & S' => 35,
+                'Onboarding - HR & Admin' => 25,
+            ],
+            'EMP-003' => [
+                'LoanEdge - Product' => 45,
+                'TRI Data Governance - Project' => 35,
+                'General HR - HR & Admin' => 20,
+            ],
+            'EMP-004' => [
+                'PixelEdge Processes - Project' => 40,
+                'Sales Pipeline - M & S' => 30,
+                'General HR - HR & Admin' => 30,
+            ],
         ];
 
-        foreach ($allocationMatrix as $projectName => $percentage) {
-            Allocation::query()->firstOrCreate(
-                [
+        foreach ($allocationMap as $employeeCode => $allocations) {
+            $employee = $employees[$employeeCode];
+
+            foreach ($allocations as $projectName => $percentage) {
+                Allocation::query()->create([
                     'user_id' => $employee->id,
-                    'project_id' => $projects->firstWhere('name', $projectName)->id,
-                ],
-                ['percentage' => $percentage]
-            );
-        }
-
-        $period = CarbonImmutable::now('Asia/Karachi');
-
-        $report = LoeReport::query()->firstOrCreate(
-            [
-                'user_id' => $employee->id,
-                'month' => $period->month,
-                'year' => $period->year,
-            ],
-            [
-                'total_percentage' => 100,
-                'submitted_at' => now(),
-            ]
-        );
-
-        if ($report->entries()->doesntExist()) {
-            foreach ($allocationMatrix as $projectName => $percentage) {
-                $report->entries()->create([
-                    'project_id' => $projects->firstWhere('name', $projectName)->id,
+                    'project_id' => $projects[$projectName]->id,
                     'percentage' => $percentage,
                 ]);
             }
         }
+
+        $seedReport = function (User $employee, CarbonImmutable $period, array $entries, string $status = 'submitted', array $attributes = []) use ($admin, $projects) {
+            $total = collect($entries)->sum();
+
+            $report = LoeReport::query()->create([
+                'user_id' => $employee->id,
+                'month' => $period->month,
+                'year' => $period->year,
+                'total_percentage' => $total,
+                'status' => $status,
+                'submitted_at' => $status === 'draft' ? null : ($attributes['submitted_at'] ?? now()),
+                'reviewed_by' => $attributes['reviewed_by'] ?? null,
+                'reviewed_at' => $attributes['reviewed_at'] ?? null,
+                'review_notes' => $attributes['review_notes'] ?? null,
+            ]);
+
+            foreach ($entries as $projectName => $percentage) {
+                $report->entries()->create([
+                    'project_id' => $projects[$projectName]->id,
+                    'percentage' => $percentage,
+                ]);
+            }
+
+            return $report;
+        };
+
+        $seedReport(
+            $employees['EMP-001'],
+            $previousPeriod,
+            [
+                'EcoTours - Project' => 45,
+                'PixelEdge Platform - Product' => 35,
+                'Recruiting - HR & Admin' => 20,
+            ],
+            'approved',
+            [
+                'submitted_at' => $previousPeriod->endOfMonth()->setTime(16, 15),
+                'reviewed_by' => $admin->id,
+                'reviewed_at' => $currentPeriod->subWeeks(3),
+                'review_notes' => 'Healthy allocation distribution for the month.',
+            ]
+        );
+
+        $approvedCurrent = $seedReport(
+            $employees['EMP-001'],
+            $currentPeriod,
+            [
+                'EcoTours - Project' => 50,
+                'PixelEdge Platform - Product' => 30,
+                'Recruiting - HR & Admin' => 20,
+            ],
+            'approved',
+            [
+                'submitted_at' => $currentPeriod->addDays(8)->setTime(11, 0),
+                'reviewed_by' => $admin->id,
+                'reviewed_at' => $currentPeriod->addDays(9)->setTime(15, 30),
+                'review_notes' => 'Approved with balanced utilization.',
+            ]
+        );
+
+        LoeFeedback::query()->create([
+            'loe_report_id' => $approvedCurrent->id,
+            'user_id' => $admin->id,
+            'message' => 'Thanks for submitting on time. The distribution looks good.',
+        ]);
+        LoeFeedback::query()->create([
+            'loe_report_id' => $approvedCurrent->id,
+            'user_id' => $employees['EMP-001']->id,
+            'message' => 'Thanks. I will keep the same breakup if the allocation stays stable next month.',
+        ]);
+
+        $seedReport(
+            $employees['EMP-002'],
+            $previousPeriod,
+            [
+                'Bookflow - Product' => 35,
+                'Content Marketing - M & S' => 40,
+                'Onboarding - HR & Admin' => 25,
+            ],
+            'approved',
+            [
+                'submitted_at' => $previousPeriod->endOfMonth()->setTime(18, 0),
+                'reviewed_by' => $admin->id,
+                'reviewed_at' => $currentPeriod->subWeeks(3)->setTime(10, 0),
+                'review_notes' => 'Previous month was reviewed and approved.',
+            ]
+        );
+
+        $seedReport(
+            $employees['EMP-002'],
+            $currentPeriod,
+            [
+                'Bookflow - Product' => 30,
+                'Content Marketing - M & S' => 32,
+                'Onboarding - HR & Admin' => 20,
+            ],
+            'draft'
+        );
+
+        $seedReport(
+            $employees['EMP-003'],
+            $previousPeriod,
+            [
+                'LoanEdge - Product' => 45,
+                'TRI Data Governance - Project' => 35,
+                'General HR - HR & Admin' => 20,
+            ],
+            'approved',
+            [
+                'submitted_at' => $previousPeriod->endOfMonth()->setTime(14, 10),
+                'reviewed_by' => $admin->id,
+                'reviewed_at' => $currentPeriod->subWeeks(2)->setTime(12, 45),
+                'review_notes' => 'Previous month approved after review.',
+            ]
+        );
+
+        $seedReport(
+            $employees['EMP-003'],
+            $currentPeriod,
+            [
+                'LoanEdge - Product' => 55,
+                'TRI Data Governance - Project' => 45,
+                'General HR - HR & Admin' => 20,
+            ],
+            'submitted',
+            [
+                'submitted_at' => $currentPeriod->addDays(12)->setTime(9, 20),
+            ]
+        );
+
+        $seedReport(
+            $employees['EMP-004'],
+            $previousPeriod,
+            [
+                'PixelEdge Processes - Project' => 50,
+                'Sales Pipeline - M & S' => 20,
+                'General HR - HR & Admin' => 30,
+            ],
+            'approved',
+            [
+                'submitted_at' => $previousPeriod->endOfMonth()->setTime(17, 35),
+                'reviewed_by' => $admin->id,
+                'reviewed_at' => $currentPeriod->subWeeks(2)->setTime(16, 0),
+                'review_notes' => 'Approved. Current month submission still pending.',
+            ]
+        );
     }
 }

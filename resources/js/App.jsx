@@ -3,20 +3,25 @@ import dayjs from 'dayjs';
 import clsx from 'clsx';
 import {
     ArrowDownTrayIcon,
+    ArrowLeftIcon,
     ArrowRightOnRectangleIcon,
     BellIcon,
     ChartBarIcon,
     ChatBubbleLeftRightIcon,
+    CheckCircleIcon,
     ClipboardDocumentListIcon,
     ClockIcon,
+    FunnelIcon,
     ExclamationTriangleIcon,
     FolderIcon,
+    PencilIcon,
     ShieldCheckIcon,
     PencilSquareIcon,
     PlusIcon,
     Squares2X2Icon,
     TrashIcon,
     UsersIcon,
+    XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { useEffect, useMemo, useState } from 'react';
 import Select from 'react-select';
@@ -892,8 +897,15 @@ function AdminDashboardPage() {
                     .filter(([key]) => key !== 'current_allocation_total')
                     .map(([key, value]) => (
                         <div className="metric-card" key={key}>
-                            <p className="text-sm uppercase tracking-[0.2em] text-slate-400">{key.replaceAll('_', ' ')}</p>
-                            <p className="mt-4 text-3xl font-semibold text-white">{value}</p>
+                            <div className="flex items-start justify-between gap-4">
+                                <div>
+                                    <p className="text-sm uppercase tracking-[0.2em] text-slate-400">{key.replaceAll('_', ' ')}</p>
+                                    <p className="mt-4 text-3xl font-semibold text-white">{value}</p>
+                                </div>
+                                <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[rgba(0,169,158,0.14)] text-[#7ff4e4]">
+                                    {renderMetricIcon(key)}
+                                </span>
+                            </div>
                         </div>
                     ))}
             </section>
@@ -932,8 +944,9 @@ function AdminDashboardPage() {
                                 <div className="flex flex-col items-end gap-3">
                                     <p className="text-sm text-slate-400">{item.employee_code}</p>
                                     {item.user_id ? (
-                                        <Link className="brand-link text-sm" to={`/admin/users/${item.user_id}/loe-reports`}>
-                                            Review LOE
+                                        <Link className="btn btn-secondary flex items-center gap-2 py-2" to={`/admin/users/${item.user_id}/loe-reports`}>
+                                            <ClipboardDocumentListIcon className="h-4 w-4" />
+                                            <span>Review LOE</span>
                                         </Link>
                                     ) : null}
                                 </div>
@@ -948,6 +961,21 @@ function AdminDashboardPage() {
             </section>
         </div>
     );
+}
+
+function renderMetricIcon(key) {
+    switch (key) {
+        case 'active_employees':
+            return <UsersIcon className="h-5 w-5" />;
+        case 'active_projects':
+            return <FolderIcon className="h-5 w-5" />;
+        case 'submitted_loe_reports':
+            return <ClipboardDocumentListIcon className="h-5 w-5" />;
+        case 'missing_submissions':
+            return <ExclamationTriangleIcon className="h-5 w-5" />;
+        default:
+            return <ChartBarIcon className="h-5 w-5" />;
+    }
 }
 
 function AdminUsersPage() {
@@ -974,8 +1002,9 @@ function AdminUsersPage() {
             ]
         },
     ]} searchPlaceholder="Search by ID, name, email, or employee code" extraRowActions={(row) => (
-        <button className="btn btn-secondary py-2" onClick={() => navigate(`/admin/users/${row.id}/loe-reports`)} type="button">
-            LOEs
+        <button className="btn btn-secondary flex items-center gap-2 py-2" onClick={() => navigate(`/admin/users/${row.id}/loe-reports`)} type="button">
+            <ClipboardDocumentListIcon className="h-4 w-4" />
+            <span>LOEs</span>
         </button>
     )} />;
 }
@@ -1005,7 +1034,10 @@ function AdminUserLoeReportsPage() {
             <section className="glass-panel rounded-[2rem] p-8">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
-                        <button className="btn btn-secondary py-2" onClick={() => navigate('/admin/users')} type="button">Back to users</button>
+                        <button className="btn btn-secondary flex items-center gap-2 py-2" onClick={() => navigate('/admin/users')} type="button">
+                            <ArrowLeftIcon className="h-4 w-4" />
+                            <span>Back to users</span>
+                        </button>
                         <h2 className="mt-4 text-2xl font-semibold text-white">{data.user.name} LOEs</h2>
                         <p className="mt-2 text-slate-300">
                             {[
@@ -1016,8 +1048,14 @@ function AdminUserLoeReportsPage() {
                         </p>
                     </div>
                     <div className="flex gap-3">
-                        <a className="btn btn-secondary" href={`/api/admin/users/${userId}/loe-reports/export?format=pdf`}>Export PDF</a>
-                        <a className="btn btn-primary" href={`/api/admin/users/${userId}/loe-reports/export?format=xlsx`}>Export Excel</a>
+                        <a className="btn btn-secondary flex items-center gap-2" href={`/api/admin/users/${userId}/loe-reports/export?format=pdf`}>
+                            <ArrowDownTrayIcon className="h-4 w-4" />
+                            <span>Export PDF</span>
+                        </a>
+                        <a className="btn btn-primary flex items-center gap-2" href={`/api/admin/users/${userId}/loe-reports/export?format=xlsx`}>
+                            <ArrowDownTrayIcon className="h-4 w-4" />
+                            <span>Export Excel</span>
+                        </a>
                     </div>
                 </div>
             </section>
@@ -1078,10 +1116,13 @@ function AdminUserLoeReportsPage() {
                                             {entryIndex === 0 ? (
                                                 <td className="py-4" rowSpan={report.entries.length}>
                                                     <div className="flex flex-col gap-2">
-                                                        <button className="btn btn-secondary py-2" onClick={() => setFeedbackReport(report)} type="button">Feedback</button>
+                                                        <button className="btn btn-secondary flex items-center gap-2 py-2" onClick={() => setFeedbackReport(report)} type="button">
+                                                            <ChatBubbleLeftRightIcon className="h-4 w-4" />
+                                                            <span>Feedback</span>
+                                                        </button>
                                                         {report.status !== 'approved' ? (
                                                             <button
-                                                                className="btn btn-primary py-2"
+                                                                className="btn btn-primary flex items-center gap-2 py-2"
                                                                 disabled={reviewingReportId === report.id}
                                                                 onClick={() => {
                                                                     setReviewTarget(report);
@@ -1089,7 +1130,8 @@ function AdminUserLoeReportsPage() {
                                                                 }}
                                                                 type="button"
                                                             >
-                                                                {reviewingReportId === report.id ? 'Approving...' : 'Approve'}
+                                                                <CheckCircleIcon className="h-4 w-4" />
+                                                                <span>{reviewingReportId === report.id ? 'Approving...' : 'Approve'}</span>
                                                             </button>
                                                         ) : null}
                                                     </div>
@@ -1128,9 +1170,12 @@ function AdminUserLoeReportsPage() {
                             onChange={(event) => setReviewNotes(event.target.value)}
                         />
                         <div className="flex justify-end gap-3">
-                            <button className="btn btn-secondary" onClick={() => setReviewTarget(null)} type="button">Cancel</button>
+                            <button className="btn btn-secondary flex items-center gap-2" onClick={() => setReviewTarget(null)} type="button">
+                                <XMarkIcon className="h-4 w-4" />
+                                <span>Cancel</span>
+                            </button>
                             <button
-                                className="btn btn-primary"
+                                className="btn btn-primary flex items-center gap-2"
                                 disabled={reviewingReportId === reviewTarget.id}
                                 onClick={async () => {
                                     setReviewingReportId(reviewTarget.id);
@@ -1148,7 +1193,8 @@ function AdminUserLoeReportsPage() {
                                 }}
                                 type="button"
                             >
-                                {reviewingReportId === reviewTarget.id ? 'Approving...' : 'Approve LOE'}
+                                <CheckCircleIcon className="h-4 w-4" />
+                                <span>{reviewingReportId === reviewTarget.id ? 'Approving...' : 'Approve LOE'}</span>
                             </button>
                         </div>
                     </div>
@@ -1251,12 +1297,15 @@ function AdminAllocationsPage() {
                         <h2 className="text-2xl font-semibold text-white">Assigned allocations</h2>
                         <p className="mt-2 text-slate-300">Create and update allocations in a dedicated modal so the list stays focused.</p>
                     </div>
-                    <button className="btn btn-primary" onClick={() => {
+                    <button className="btn btn-primary flex items-center gap-2" onClick={() => {
                         setEditingId(null);
                         setForm({ user_id: '', project_id: '', percentage: '' });
                         setMessage('');
                         setIsModalOpen(true);
-                    }} type="button">Add allocation</button>
+                    }} type="button">
+                        <PlusIcon className="h-4 w-4" />
+                        <span>Add allocation</span>
+                    </button>
                 </div>
                 {message ? <p className="mt-5 rounded-2xl bg-white/8 px-4 py-3 text-sm text-slate-200">{message}</p> : null}
                 <div className="mt-5 grid gap-3 lg:grid-cols-[1fr_320px_auto]">
@@ -1274,10 +1323,13 @@ function AdminAllocationsPage() {
                             .map((project) => ({ value: project.id, label: project.name }))}
                         onChange={(selectedOptions) => setSelectedProjectFilters((selectedOptions ?? []).map((option) => option.value))}
                     />
-                    <button className="btn btn-secondary" onClick={() => {
+                    <button className="btn btn-secondary flex items-center gap-2" onClick={() => {
                         setSearch('');
                         setSelectedProjectFilters([]);
-                    }} type="button">Clear</button>
+                    }} type="button">
+                        <XMarkIcon className="h-4 w-4" />
+                        <span>Clear</span>
+                    </button>
                 </div>
                 <div className="mt-6 overflow-auto">
                     {allocations.length ? (
@@ -1307,13 +1359,19 @@ function AdminAllocationsPage() {
                                             ) : null}
                                             <td className="py-3">
                                                 <div className="flex gap-2">
-                                                    <button className="btn btn-secondary py-2" onClick={() => {
+                                                    <button className="btn btn-secondary flex items-center gap-2 py-2" onClick={() => {
                                                         setEditingId(allocation.id);
                                                         setForm({ user_id: allocation.user_id, project_id: allocation.project_id, percentage: allocation.percentage });
                                                         setMessage('');
                                                         setIsModalOpen(true);
-                                                    }} type="button">Edit</button>
-                                                    <button className="btn btn-danger py-2" onClick={async () => { await axios.delete(`/api/admin/allocations/${allocation.id}`); await load(); }} type="button">Delete</button>
+                                                    }} type="button">
+                                                        <PencilIcon className="h-4 w-4" />
+                                                        <span>Edit</span>
+                                                    </button>
+                                                    <button className="btn btn-danger flex items-center gap-2 py-2" onClick={async () => { await axios.delete(`/api/admin/allocations/${allocation.id}`); await load(); }} type="button">
+                                                        <TrashIcon className="h-4 w-4" />
+                                                        <span>Delete</span>
+                                                    </button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -1340,7 +1398,10 @@ function AdminAllocationsPage() {
                         {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
                     </select>
                     <input className="field" type="number" min="0.01" max="100" step="0.01" value={form.percentage} onChange={(event) => setForm({ ...form, percentage: event.target.value })} />
-                    <button className="btn btn-primary w-full" type="submit">{editingId ? 'Update allocation' : 'Create allocation'}</button>
+                    <button className="btn btn-primary flex w-full items-center justify-center gap-2" type="submit">
+                        <CheckCircleIcon className="h-4 w-4" />
+                        <span>{editingId ? 'Update allocation' : 'Create allocation'}</span>
+                    </button>
                     {message && isModalOpen ? <p className="text-sm text-slate-300">{message}</p> : null}
                 </form>
             </Modal>
@@ -1389,8 +1450,9 @@ function AdminReportsPage() {
                 rows={employeeMonthlyRows}
                 hiddenHeaders={['entries', 'loe_status_tone']}
                 getRowActions={(row) => (
-                    <button className="btn btn-secondary py-2" onClick={() => setSelectedMonthlyReport(row)} type="button">
-                        Details
+                    <button className="btn btn-secondary flex items-center gap-2 py-2" onClick={() => setSelectedMonthlyReport(row)} type="button">
+                        <ClipboardDocumentListIcon className="h-4 w-4" />
+                        <span>Details</span>
                     </button>
                 )}
             />
@@ -1487,12 +1549,18 @@ function AdminActivityLogsPage() {
                     </select>
                 </div>
                 <div className="mt-4 mb-2 flex justify-end gap-3">
-                    <button className="btn btn-primary" onClick={() => load(filters)} type="button">Apply</button>
-                    <button className="btn btn-secondary" onClick={() => {
+                    <button className="btn btn-primary flex items-center gap-2" onClick={() => load(filters)} type="button">
+                        <FunnelIcon className="h-4 w-4" />
+                        <span>Apply</span>
+                    </button>
+                    <button className="btn btn-secondary flex items-center gap-2" onClick={() => {
                         const clearedFilters = { module: '', event: '', subject: '', actor: '' };
                         setFilters(clearedFilters);
                         load(clearedFilters);
-                    }} type="button">Clear Filters</button>
+                    }} type="button">
+                        <XMarkIcon className="h-4 w-4" />
+                        <span>Clear Filters</span>
+                    </button>
                 </div>
             </section>
 
@@ -1527,7 +1595,10 @@ function AdminActivityLogsPage() {
                                         <td className="py-3 pr-4 break-words leading-6">{summarizeActivity(activity)}</td>
                                         <td className="py-3 pr-4 break-words leading-6">{activity.causer ? `${activity.causer.name} (${activity.causer.email})` : 'System'}</td>
                                         <td className="py-3 align-middle">
-                                            <button className="btn btn-secondary py-2" onClick={() => setSelectedActivity(activity)} type="button">Details</button>
+                                            <button className="btn btn-secondary flex items-center gap-2 py-2" onClick={() => setSelectedActivity(activity)} type="button">
+                                                <ClipboardDocumentListIcon className="h-4 w-4" />
+                                                <span>Details</span>
+                                            </button>
                                         </td>
                                     </tr>
                                 ))}
@@ -1812,17 +1883,23 @@ function CrudPage({ title, endpoint, formFactory, fields, searchPlaceholder = 'S
                     <div>
                         <h2 className="text-2xl font-semibold text-white">{title}</h2>
                     </div>
-                    <button className="btn btn-primary" onClick={() => {
+                    <button className="btn btn-primary flex items-center gap-2" onClick={() => {
                         setEditingId(null);
                         setForm(formFactory());
                         setMessage('');
                         setIsModalOpen(true);
-                    }} type="button">Add {singularTitle}</button>
+                    }} type="button">
+                        <PlusIcon className="h-4 w-4" />
+                        <span>Add {singularTitle}</span>
+                    </button>
                 </div>
                 {message ? <p className="mt-5 rounded-2xl bg-white/8 px-4 py-3 text-sm text-slate-200">{message}</p> : null}
                 <div className="mt-5 flex flex-wrap gap-3">
                     <input className="field flex-1 min-w-72" placeholder={searchPlaceholder} value={search} onChange={(event) => setSearch(event.target.value)} />
-                    <button className="btn btn-secondary" onClick={() => setSearch('')} type="button">Clear</button>
+                    <button className="btn btn-secondary flex items-center gap-2" onClick={() => setSearch('')} type="button">
+                        <XMarkIcon className="h-4 w-4" />
+                        <span>Clear</span>
+                    </button>
                 </div>
                 <div className="mt-6 overflow-auto">
                     {rows.length ? (
@@ -1851,7 +1928,7 @@ function CrudPage({ title, endpoint, formFactory, fields, searchPlaceholder = 'S
                                         <td className="py-3">
                                             <div className="flex gap-2">
                                                 {extraRowActions ? extraRowActions(row) : null}
-                                                <button className="btn btn-secondary py-2" onClick={() => {
+                                                <button className="btn btn-secondary flex items-center gap-2 py-2" onClick={() => {
                                                     setEditingId(row.id);
                                                     setForm({
                                                         ...formFactory(),
@@ -1861,8 +1938,14 @@ function CrudPage({ title, endpoint, formFactory, fields, searchPlaceholder = 'S
                                                     });
                                                     setMessage('');
                                                     setIsModalOpen(true);
-                                                }} type="button">Edit</button>
-                                                <button className="btn btn-danger py-2" onClick={async () => { await axios.delete(`${endpoint}/${row.id}`); await load(); }} type="button">Archive</button>
+                                                }} type="button">
+                                                    <PencilIcon className="h-4 w-4" />
+                                                    <span>Edit</span>
+                                                </button>
+                                                <button className="btn btn-danger flex items-center gap-2 py-2" onClick={async () => { await axios.delete(`${endpoint}/${row.id}`); await load(); }} type="button">
+                                                    <TrashIcon className="h-4 w-4" />
+                                                    <span>Archive</span>
+                                                </button>
                                             </div>
                                         </td>
                                     </tr>
@@ -1916,7 +1999,10 @@ function CrudPage({ title, endpoint, formFactory, fields, searchPlaceholder = 'S
                             />
                         )
                     ))}
-                    <button className="btn btn-primary w-full" type="submit">{editingId ? 'Update' : 'Create'} {singularTitle}</button>
+                    <button className="btn btn-primary flex w-full items-center justify-center gap-2" type="submit">
+                        <CheckCircleIcon className="h-4 w-4" />
+                        <span>{editingId ? 'Update' : 'Create'} {singularTitle}</span>
+                    </button>
                     {message && isModalOpen ? <p className="text-sm text-slate-300">{message}</p> : null}
                 </form>
             </Modal>
@@ -1970,8 +2056,9 @@ function NotificationsPage({ role }) {
                     </div>
                     <div className="flex items-center gap-3">
                         <span className="rounded-full bg-white/8 px-4 py-2 text-sm text-slate-200">{data.unread_count} unread</span>
-                        <button className="btn btn-primary" disabled={busyId === 'all' || data.unread_count === 0} onClick={markAllAsRead} type="button">
-                            {busyId === 'all' ? 'Marking...' : 'Mark all as read'}
+                        <button className="btn btn-primary flex items-center gap-2" disabled={busyId === 'all' || data.unread_count === 0} onClick={markAllAsRead} type="button">
+                            <CheckCircleIcon className="h-4 w-4" />
+                            <span>{busyId === 'all' ? 'Marking...' : 'Mark all as read'}</span>
                         </button>
                     </div>
                 </div>
@@ -1992,8 +2079,9 @@ function NotificationsPage({ role }) {
                                         {notification.read_at ? 'Read' : 'Unread'}
                                     </span>
                                     {!notification.read_at ? (
-                                        <button className="btn btn-secondary py-2" disabled={busyId === notification.id} onClick={() => markAsRead(notification.id)} type="button">
-                                            {busyId === notification.id ? 'Marking...' : 'Mark as read'}
+                                        <button className="btn btn-secondary flex items-center gap-2 py-2" disabled={busyId === notification.id} onClick={() => markAsRead(notification.id)} type="button">
+                                            <CheckCircleIcon className="h-4 w-4" />
+                                            <span>{busyId === notification.id ? 'Marking...' : 'Mark as read'}</span>
                                         </button>
                                     ) : null}
                                 </div>
@@ -2228,7 +2316,10 @@ function Modal({ isOpen, title, onClose, children }) {
             <div className="glass-panel max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[2rem] p-8">
                 <div className="flex items-start justify-between gap-4">
                     <h3 className="text-2xl font-semibold text-white">{title}</h3>
-                    <button className="btn btn-secondary py-2" onClick={onClose} type="button">Close</button>
+                    <button className="btn btn-secondary flex items-center gap-2 py-2" onClick={onClose} type="button">
+                        <XMarkIcon className="h-4 w-4" />
+                        <span>Close</span>
+                    </button>
                 </div>
                 <div className="mt-6">{children}</div>
             </div>
