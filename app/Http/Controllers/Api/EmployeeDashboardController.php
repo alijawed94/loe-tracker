@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\LoeEntry;
 use App\Models\Project;
 use App\Support\LoeInsights;
 use App\Support\LoePeriod;
@@ -49,12 +50,7 @@ class EmployeeDashboardController extends Controller
                 'reviewer_name' => $report->reviewer?->name,
                 'is_locked' => LoePeriod::isClosed($report->month, $report->year, $user),
                 'warnings' => LoeInsights::reportWarnings($report, $user),
-                'entries' => $report->entries->map(fn ($entry) => [
-                    'id' => $entry->id,
-                    'project_id' => $entry->project_id,
-                    'project_name' => $entry->project?->name,
-                    'percentage' => (float) $entry->percentage,
-                ])->values(),
+                'entries' => $report->entries->map(fn ($entry) => $this->transformEntry($entry))->values(),
                 'feedback' => $report->feedback->map(fn ($feedback) => [
                     'id' => $feedback->id,
                     'message' => $feedback->message,
@@ -86,12 +82,7 @@ class EmployeeDashboardController extends Controller
                 'reviewer_name' => $currentReport->reviewer?->name,
                 'is_locked' => LoePeriod::isClosed($currentReport->month, $currentReport->year, $user),
                 'warnings' => LoeInsights::reportWarnings($currentReport, $user),
-                'entries' => $currentReport->entries->map(fn ($entry) => [
-                    'id' => $entry->id,
-                    'project_id' => $entry->project_id,
-                    'project_name' => $entry->project?->name,
-                    'percentage' => (float) $entry->percentage,
-                ])->values(),
+                'entries' => $currentReport->entries->map(fn ($entry) => $this->transformEntry($entry))->values(),
                 'feedback' => $currentReport->feedback->map(fn ($feedback) => [
                     'id' => $feedback->id,
                     'message' => $feedback->message,
@@ -111,9 +102,16 @@ class EmployeeDashboardController extends Controller
                 'percentage' => (float) $allocation->percentage,
             ])->values(),
             'prefill_entries' => $user->allocations->map(fn ($allocation) => [
+                'entry_type' => LoeEntry::ENTRY_TYPE_PROJECT,
                 'project_id' => $allocation->project_id,
+                'time_off_type' => null,
                 'project_name' => $allocation->project?->name,
+                'entry_label' => $allocation->project?->name,
                 'percentage' => (float) $allocation->percentage,
+            ])->values(),
+            'time_off_types' => collect(LoeEntry::TIME_OFF_TYPES)->map(fn ($type) => [
+                'value' => $type,
+                'label' => str($type)->replace('_', ' ')->title()->value(),
             ])->values(),
             'projects' => Project::query()
                 ->where('status', true)
@@ -127,5 +125,22 @@ class EmployeeDashboardController extends Controller
                     'engagement_type_label' => $project->engagement_type_label,
                 ]),
         ]);
+    }
+
+    protected function transformEntry(LoeEntry $entry): array
+    {
+        return [
+            'id' => $entry->id,
+            'entry_type' => $entry->entry_type,
+            'entry_type_label' => $entry->entryTypeLabel(),
+            'project_id' => $entry->project_id,
+            'project_name' => $entry->project?->name,
+            'time_off_type' => $entry->time_off_type,
+            'time_off_type_label' => $entry->timeOffTypeLabel(),
+            'entry_label' => $entry->displayName(),
+            'engagement_type' => $entry->entry_type === LoeEntry::ENTRY_TYPE_TIME_OFF ? 'time_off' : $entry->project?->engagement_type,
+            'engagement_type_label' => $entry->entry_type === LoeEntry::ENTRY_TYPE_TIME_OFF ? 'Time Off' : $entry->project?->engagement_type_label,
+            'percentage' => (float) $entry->percentage,
+        ];
     }
 }

@@ -450,7 +450,7 @@ function EmployeeDashboardPage({ user }) {
     const [deletingReportId, setDeletingReportId] = useState(null);
     const [message, setMessage] = useState('');
     const now = dayjs();
-    const [form, setForm] = useState({ month: now.month() + 1, year: now.year(), entries: [{ project_id: '', percentage: '' }] });
+    const [form, setForm] = useState({ month: now.month() + 1, year: now.year(), entries: [createEmptyLoeEntry()] });
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState('create');
     const [editingReportId, setEditingReportId] = useState(null);
@@ -478,13 +478,10 @@ function EmployeeDashboardPage({ user }) {
 
     const buildPrefillEntries = () => {
         if (data?.prefill_entries?.length) {
-            return data.prefill_entries.map((entry) => ({
-                project_id: entry.project_id,
-                percentage: entry.percentage,
-            }));
+            return data.prefill_entries.map(normalizeLoeEntry);
         }
 
-        return [{ project_id: '', percentage: '' }];
+        return [createEmptyLoeEntry()];
     };
 
     const openCreateModal = () => {
@@ -509,8 +506,8 @@ function EmployeeDashboardPage({ user }) {
             month: report.month,
             year: report.year,
             entries: report.entries.length
-                ? report.entries.map((entry) => ({ project_id: entry.project_id, percentage: entry.percentage }))
-                : [{ project_id: '', percentage: '' }],
+                ? report.entries.map(normalizeLoeEntry)
+                : [createEmptyLoeEntry()],
         });
         setIsModalOpen(true);
     };
@@ -534,10 +531,7 @@ function EmployeeDashboardPage({ user }) {
 
         setForm((current) => ({
             ...current,
-            entries: sourceReport.entries.map((entry) => ({
-                project_id: entry.project_id,
-                percentage: entry.percentage,
-            })),
+            entries: sourceReport.entries.map(normalizeLoeEntry),
         }));
         setMessage(`Copied entries from ${dayjs(`${sourceReport.year}-${String(sourceReport.month).padStart(2, '0')}-01`).format('MMMM YYYY')}.`);
     };
@@ -546,6 +540,21 @@ function EmployeeDashboardPage({ user }) {
         setForm((current) => ({
             ...current,
             entries: current.entries.map((entry, entryIndex) => entryIndex === index ? { ...entry, [key]: value } : entry),
+        }));
+    };
+
+    const updateEntryType = (index, value) => {
+        setForm((current) => ({
+            ...current,
+            entries: current.entries.map((entry, entryIndex) => {
+                if (entryIndex !== index) {
+                    return entry;
+                }
+
+                return value === 'time_off'
+                    ? createEmptyLoeEntry('time_off', { percentage: entry.percentage })
+                    : createEmptyLoeEntry('project', { percentage: entry.percentage });
+            }),
         }));
     };
 
@@ -561,7 +570,9 @@ function EmployeeDashboardPage({ user }) {
                 year: Number(form.year),
                 status: nextStatus,
                 entries: form.entries.map((entry) => ({
-                    project_id: entry.project_id,
+                    entry_type: entry.entry_type,
+                    project_id: entry.entry_type === 'project' ? entry.project_id : null,
+                    time_off_type: entry.entry_type === 'time_off' ? entry.time_off_type : null,
                     percentage: Number(entry.percentage),
                 })),
             };
@@ -670,7 +681,7 @@ function EmployeeDashboardPage({ user }) {
                             <ul className="mt-4 space-y-2 text-sm text-slate-300">
                                 {data.current_report.entries.map((entry) => (
                                     <li className="flex items-center justify-between" key={entry.id}>
-                                        <span>{entry.project_name}</span>
+                                        <span>{entry.entry_label}</span>
                                         <span>{formatPercentage(entry.percentage)}</span>
                                     </li>
                                 ))}
@@ -722,7 +733,7 @@ function EmployeeDashboardPage({ user }) {
                             <tr>
                                 <th className="pb-4 pr-4">Month / Year</th>
                                 <th className="pb-4 pr-4">Total</th>
-                                <th className="pb-4 pr-4">Project</th>
+                                <th className="pb-4 pr-4">Entry</th>
                                 <th className="pb-4 pr-4">Percentage</th>
                                 <th className="pb-4">Action</th>
                             </tr>
@@ -748,7 +759,7 @@ function EmployeeDashboardPage({ user }) {
                                                 </td>
                                             </>
                                         ) : null}
-                                        <td className="py-4 pr-4">{entry.project_name}</td>
+                                        <td className="py-4 pr-4">{entry.entry_label}</td>
                                         <td className="py-4 pr-4">{formatPercentage(entry.percentage)}</td>
                                         {entryIndex === 0 ? (
                                             <td className="py-4" rowSpan={report.entries.length}>
@@ -809,13 +820,26 @@ function EmployeeDashboardPage({ user }) {
                     </div>
 
                     {form.entries.map((entry, index) => (
-                        <div className="grid gap-3 md:grid-cols-[1fr_160px_110px]" key={index}>
-                            <select className="field" disabled={isLocked} value={entry.project_id} onChange={(event) => updateEntry(index, 'project_id', event.target.value)}>
-                                <option value="">Select a project</option>
-                                {data.projects.map((project) => (
-                                    <option key={project.id} value={project.id}>{project.name}</option>
-                                ))}
+                        <div className="grid gap-3 md:grid-cols-[180px_1fr_160px_110px]" key={index}>
+                            <select className="field" disabled={isLocked} value={entry.entry_type} onChange={(event) => updateEntryType(index, event.target.value)}>
+                                <option value="project">Project</option>
+                                <option value="time_off">Time Off</option>
                             </select>
+                            {entry.entry_type === 'time_off' ? (
+                                <select className="field" disabled={isLocked} value={entry.time_off_type} onChange={(event) => updateEntry(index, 'time_off_type', event.target.value)}>
+                                    <option value="">Select time off type</option>
+                                    {data.time_off_types.map((type) => (
+                                        <option key={type.value} value={type.value}>{type.label}</option>
+                                    ))}
+                                </select>
+                            ) : (
+                                <select className="field" disabled={isLocked} value={entry.project_id} onChange={(event) => updateEntry(index, 'project_id', event.target.value)}>
+                                    <option value="">Select a project</option>
+                                    {data.projects.map((project) => (
+                                        <option key={project.id} value={project.id}>{project.name}</option>
+                                    ))}
+                                </select>
+                            )}
                             <input className="field" disabled={isLocked} min="0.01" max="100" placeholder="Percentage" step="0.01" type="number" value={entry.percentage} onChange={(event) => updateEntry(index, 'percentage', event.target.value)} />
                             <button className="btn btn-secondary" disabled={isLocked || form.entries.length === 1} onClick={() => setForm({ ...form, entries: form.entries.filter((_, rowIndex) => rowIndex !== index) })} type="button">Remove</button>
                         </div>
@@ -829,7 +853,8 @@ function EmployeeDashboardPage({ user }) {
                             }} type="button">Use Allocations</button>
                         ) : null}
                         <button className="btn btn-secondary" disabled={isLocked} onClick={copyPreviousMonth} type="button">Copy Last Month</button>
-                        <button className="btn btn-secondary" disabled={isLocked} onClick={() => setForm({ ...form, entries: [...form.entries, { project_id: '', percentage: '' }] })} type="button">Add project</button>
+                        <button className="btn btn-secondary" disabled={isLocked} onClick={() => setForm({ ...form, entries: [...form.entries, createEmptyLoeEntry('project')] })} type="button">Add project</button>
+                        <button className="btn btn-secondary" disabled={isLocked} onClick={() => setForm({ ...form, entries: [...form.entries, createEmptyLoeEntry('time_off')] })} type="button">Add time off</button>
                         <button className="btn btn-secondary" disabled={saving || isLocked} onClick={(event) => submit(event, 'draft')} type="button">{saving && saveIntent === 'draft' ? 'Saving...' : 'Save Draft'}</button>
                         <button className="btn btn-primary" disabled={saving || isLocked} onClick={(event) => submit(event, 'submitted')} type="button">{saving && saveIntent === 'submitted' ? 'Saving...' : isEditing ? 'Submit Update' : 'Submit LOE'}</button>
                     </div>
@@ -1069,7 +1094,7 @@ function AdminUserLoeReportsPage() {
                                 <tr>
                                     <th className="pb-4 pr-4">Month / Year</th>
                                     <th className="pb-4 pr-4">Total</th>
-                                    <th className="pb-4 pr-4">Project</th>
+                                    <th className="pb-4 pr-4">Entry</th>
                                     <th className="pb-4 pr-4">Engagement Type</th>
                                     <th className="pb-4 pr-4">Percentage</th>
                                     <th className="pb-4 pr-4">Submitted At</th>
@@ -1104,7 +1129,7 @@ function AdminUserLoeReportsPage() {
                                                     </td>
                                                 </>
                                             ) : null}
-                                            <td className="py-4 pr-4">{entry.project_name}</td>
+                                            <td className="py-4 pr-4">{entry.entry_label}</td>
                                             <td className="py-4 pr-4">{entry.engagement_type_label ?? entry.engagement_type}</td>
                                             <td className="py-4 pr-4">{formatPercentage(entry.percentage)}</td>
                                             {entryIndex === 0 ? (
@@ -1483,7 +1508,7 @@ function AdminReportsPage() {
                             <table className="min-w-full text-left text-sm text-slate-200">
                                 <thead className="text-slate-400">
                                     <tr>
-                                        <th className="pb-3 pr-4">Project</th>
+                                        <th className="pb-3 pr-4">Entry</th>
                                         <th className="pb-3 pr-4">Engagement Type</th>
                                         <th className="pb-3 pr-4">Percentage</th>
                                     </tr>
@@ -1491,7 +1516,7 @@ function AdminReportsPage() {
                                 <tbody>
                                     {selectedMonthlyReport.entries?.map((entry) => (
                                         <tr className="border-t border-white/8" key={entry.id}>
-                                            <td className="py-3 pr-4">{entry.project}</td>
+                                            <td className="py-3 pr-4">{entry.entry_label ?? entry.project}</td>
                                             <td className="py-3 pr-4">{entry.engagement_type_label ?? entry.engagement_type}</td>
                                             <td className="py-3 pr-4">{formatPercentage(entry.percentage)}</td>
                                         </tr>
@@ -2377,6 +2402,25 @@ function getLoeWarnings(totalPercentage, allocationTotal = 0) {
     }
 
     return warnings;
+}
+
+function createEmptyLoeEntry(entryType = 'project', overrides = {}) {
+    return {
+        entry_type: entryType,
+        project_id: entryType === 'project' ? '' : null,
+        time_off_type: entryType === 'time_off' ? '' : null,
+        percentage: '',
+        ...overrides,
+    };
+}
+
+function normalizeLoeEntry(entry) {
+    return {
+        entry_type: entry.entry_type ?? (entry.time_off_type ? 'time_off' : 'project'),
+        project_id: entry.project_id ?? '',
+        time_off_type: entry.time_off_type ?? '',
+        percentage: entry.percentage ?? '',
+    };
 }
 
 function formatPercentage(value) {

@@ -181,6 +181,14 @@ class AdminApiTest extends TestCase
             'project_id' => $projectB->id,
             'percentage' => 40,
         ]);
+        LoeEntry::factory()->create([
+            'loe_report_id' => $report->id,
+            'entry_type' => 'time_off',
+            'project_id' => null,
+            'time_off_type' => 'public_holiday',
+            'percentage' => 5,
+        ]);
+        $report->update(['total_percentage' => 100]);
 
         $this->actingAs($admin);
 
@@ -191,9 +199,11 @@ class AdminApiTest extends TestCase
             ->assertJsonCount(1, 'reports')
             ->assertJsonPath('reports.0.month', 3)
             ->assertJsonPath('reports.0.year', 2026)
-            ->assertJsonCount(2, 'reports.0.entries')
+            ->assertJsonCount(3, 'reports.0.entries')
             ->assertJsonPath('reports.0.entries.0.project_name', 'Atlas')
-            ->assertJsonPath('reports.0.entries.1.project_name', 'Orbit');
+            ->assertJsonPath('reports.0.entries.1.project_name', 'Orbit')
+            ->assertJsonPath('reports.0.entries.2.entry_type', 'time_off')
+            ->assertJsonPath('reports.0.entries.2.entry_label', 'Public Holiday');
 
         $this->get("/api/admin/users/{$employee->id}/loe-reports/export?format=pdf")
             ->assertOk()

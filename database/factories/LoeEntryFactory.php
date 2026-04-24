@@ -21,7 +21,9 @@ class LoeEntryFactory extends Factory
     {
         return [
             'loe_report_id' => \App\Models\LoeReport::factory(),
+            'entry_type' => LoeEntry::ENTRY_TYPE_PROJECT,
             'project_id' => \App\Models\Project::factory(),
+            'time_off_type' => null,
             'percentage' => fake()->randomFloat(2, 1, 100),
         ];
     }

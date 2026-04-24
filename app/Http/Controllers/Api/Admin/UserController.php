@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ReviewLoeReportRequest;
 use App\Http\Requests\Admin\StoreUserRequest;
 use App\Http\Requests\Admin\UpdateUserRequest;
+use App\Models\LoeEntry;
 use App\Models\LoeReport;
 use App\Models\Role;
 use App\Models\User;
@@ -102,9 +103,14 @@ class UserController extends Controller
                 'warnings' => LoeInsights::reportWarnings($report, $user),
                 'entries' => $report->entries->map(fn ($entry) => [
                     'id' => $entry->id,
+                    'entry_type' => $entry->entry_type,
+                    'entry_type_label' => $entry->entryTypeLabel(),
+                    'entry_label' => $entry->displayName(),
                     'project_name' => $entry->project?->name,
-                    'engagement_type' => $entry->project?->engagement_type,
-                    'engagement_type_label' => $entry->project?->engagement_type_label,
+                    'time_off_type' => $entry->time_off_type,
+                    'time_off_type_label' => $entry->timeOffTypeLabel(),
+                    'engagement_type' => $entry->entry_type === LoeEntry::ENTRY_TYPE_TIME_OFF ? 'time_off' : $entry->project?->engagement_type,
+                    'engagement_type_label' => $entry->entry_type === LoeEntry::ENTRY_TYPE_TIME_OFF ? 'Time Off' : $entry->project?->engagement_type_label,
                     'percentage' => (float) $entry->percentage,
                 ])->values()->all(),
                 'feedback' => $report->feedback->map(fn ($feedback) => [
@@ -168,8 +174,8 @@ class UserController extends Controller
         $rows = $reports->flatMap(fn ($report) => $report->entries->map(fn ($entry) => [
             'Month / Year' => sprintf('%s %04d', now()->setMonth($report->month)->format('F'), $report->year),
             'Total' => number_format((float) $report->total_percentage, fmod((float) $report->total_percentage, 1.0) === 0.0 ? 0 : 2).'%',
-            'Project' => $entry->project?->name,
-            'Engagement Type' => $entry->project?->engagement_type_label,
+            'Project' => $entry->displayName(),
+            'Engagement Type' => $entry->entry_type === LoeEntry::ENTRY_TYPE_TIME_OFF ? 'Time Off' : $entry->project?->engagement_type_label,
             'Percentage' => number_format((float) $entry->percentage, fmod((float) $entry->percentage, 1.0) === 0.0 ? 0 : 2).'%',
             'Submitted At' => optional($report->submitted_at)?->format('d M Y, h:i A'),
         ]));

@@ -19,8 +19,22 @@ class LoeEntry extends Model
 
     protected $fillable = [
         'loe_report_id',
+        'entry_type',
         'project_id',
+        'time_off_type',
         'percentage',
+    ];
+
+    public const ENTRY_TYPE_PROJECT = 'project';
+
+    public const ENTRY_TYPE_TIME_OFF = 'time_off';
+
+    public const TIME_OFF_TYPES = [
+        'vacation',
+        'sick_leave',
+        'public_holiday',
+        'personal_leave',
+        'other',
     ];
 
     protected function casts(): array
@@ -38,5 +52,26 @@ class LoeEntry extends Model
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class)->withTrashed();
+    }
+
+    public function entryTypeLabel(): string
+    {
+        return $this->entry_type === self::ENTRY_TYPE_TIME_OFF ? 'Time Off' : 'Project';
+    }
+
+    public function timeOffTypeLabel(): ?string
+    {
+        if (! $this->time_off_type) {
+            return null;
+        }
+
+        return str($this->time_off_type)->replace('_', ' ')->title()->value();
+    }
+
+    public function displayName(): string
+    {
+        return $this->entry_type === self::ENTRY_TYPE_TIME_OFF
+            ? $this->timeOffTypeLabel() ?? 'Time Off'
+            : ($this->project?->name ?? 'Project');
     }
 }

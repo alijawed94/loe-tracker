@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Employee\StoreLoeReportRequest;
 use App\Http\Requests\Employee\UpdateLoeReportRequest;
+use App\Models\LoeEntry;
 use App\Models\LoeReport;
 use App\Notifications\LoeSubmissionConfirmationNotification;
 use App\Support\LoePeriod;
@@ -125,8 +126,8 @@ class EmployeeLoeReportController extends Controller
 
         $rows = $reports->flatMap(fn($report) => $report->entries->map(fn($entry) => [
             'Month/Year' => sprintf('%02d/%04d', $report->month, $report->year),
-            'Project' => $entry->project?->name,
-            'Engagement Type' => $entry->project?->engagement_type_label,
+            'Project' => $entry->displayName(),
+            'Engagement Type' => $entry->entry_type === LoeEntry::ENTRY_TYPE_TIME_OFF ? 'Time Off' : $entry->project?->engagement_type_label,
             'Percentage' => (float) $entry->percentage,
         ]));
 

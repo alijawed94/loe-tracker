@@ -73,8 +73,8 @@ class EmployeeApiTest extends TestCase
             'month' => 12,
             'year' => 2099,
             'entries' => [
-                ['project_id' => $projectA->id, 'percentage' => 60],
-                ['project_id' => $projectB->id, 'percentage' => 40],
+                ['entry_type' => 'project', 'project_id' => $projectA->id, 'percentage' => 60],
+                ['entry_type' => 'project', 'project_id' => $projectB->id, 'percentage' => 40],
             ],
         ]);
 
@@ -94,8 +94,8 @@ class EmployeeApiTest extends TestCase
 
         $this->putJson("/api/employee/reports/{$reportId}", [
             'entries' => [
-                ['project_id' => $projectA->id, 'percentage' => 70],
-                ['project_id' => $projectB->id, 'percentage' => 20],
+                ['entry_type' => 'project', 'project_id' => $projectA->id, 'percentage' => 70],
+                ['entry_type' => 'project', 'project_id' => $projectB->id, 'percentage' => 20],
             ],
         ])
             ->assertOk()
@@ -144,7 +144,7 @@ class EmployeeApiTest extends TestCase
             'year' => 2099,
             'status' => 'draft',
             'entries' => [
-                ['project_id' => $project->id, 'percentage' => 45],
+                ['entry_type' => 'project', 'project_id' => $project->id, 'percentage' => 45],
             ],
         ]);
 
@@ -158,7 +158,7 @@ class EmployeeApiTest extends TestCase
         $this->putJson("/api/employee/reports/{$reportId}", [
             'status' => 'submitted',
             'entries' => [
-                ['project_id' => $project->id, 'percentage' => 85],
+                ['entry_type' => 'project', 'project_id' => $project->id, 'percentage' => 85],
             ],
         ])
             ->assertOk()
@@ -185,7 +185,7 @@ class EmployeeApiTest extends TestCase
             'month' => 12,
             'year' => 2099,
             'entries' => [
-                ['project_id' => $project->id, 'percentage' => 50],
+                ['entry_type' => 'project', 'project_id' => $project->id, 'percentage' => 50],
             ],
         ])
             ->assertStatus(422)
@@ -205,7 +205,7 @@ class EmployeeApiTest extends TestCase
             'month' => 1,
             'year' => 2020,
             'entries' => [
-                ['project_id' => $project->id, 'percentage' => 50],
+                ['entry_type' => 'project', 'project_id' => $project->id, 'percentage' => 50],
             ],
         ])
             ->assertCreated()
@@ -253,7 +253,7 @@ class EmployeeApiTest extends TestCase
 
         $this->putJson("/api/employee/reports/{$report->id}", [
             'entries' => [
-                ['project_id' => $project->id, 'percentage' => 60],
+                ['entry_type' => 'project', 'project_id' => $project->id, 'percentage' => 60],
             ],
         ])
             ->assertStatus(422)
@@ -319,5 +319,43 @@ class EmployeeApiTest extends TestCase
 
         $this->getJson("/api/loe-reports/{$report->id}/feedback")
             ->assertForbidden();
+    }
+
+    public function test_employee_can_submit_time_off_and_it_counts_towards_total(): void
+    {
+        Notification::fake();
+
+        $employee = $this->createUserWithRoles(['employee']);
+        $project = Project::factory()->create(['status' => true]);
+
+        $this->actingAs($employee);
+
+        $response = $this->postJson('/api/employee/reports', [
+            'month' => 10,
+            'year' => 2099,
+            'entries' => [
+                ['entry_type' => 'project', 'project_id' => $project->id, 'percentage' => 70],
+                ['entry_type' => 'time_off', 'time_off_type' => 'vacation', 'percentage' => 20],
+            ],
+        ]);
+
+        $response
+            ->assertCreated()
+            ->assertJsonPath('total_percentage', '90.00');
+
+        $reportId = $response->json('id');
+
+        $this->getJson('/api/employee/dashboard')
+            ->assertOk()
+            ->assertJsonPath('reports.0.entries.1.entry_type', 'time_off')
+            ->assertJsonPath('reports.0.entries.1.time_off_type', 'vacation')
+            ->assertJsonPath('reports.0.entries.1.entry_label', 'Vacation');
+
+        $this->assertDatabaseHas('loe_entries', [
+            'loe_report_id' => $reportId,
+            'entry_type' => 'time_off',
+            'time_off_type' => 'vacation',
+            'project_id' => null,
+        ]);
     }
 }

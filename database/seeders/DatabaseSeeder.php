@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Allocation;
+use App\Models\LoeEntry;
 use App\Models\LoeFeedback;
 use App\Models\LoeReport;
 use App\Models\Project;
@@ -172,7 +173,19 @@ class DatabaseSeeder extends Seeder
         }
 
         $seedReport = function (User $employee, CarbonImmutable $period, array $entries, string $status = 'submitted', array $attributes = []) use ($admin, $projects) {
-            $total = collect($entries)->sum();
+            $normalizedEntries = collect($entries)->map(function ($entry, $key) {
+                if (is_array($entry)) {
+                    return $entry;
+                }
+
+                return [
+                    'entry_type' => LoeEntry::ENTRY_TYPE_PROJECT,
+                    'project_name' => $key,
+                    'percentage' => $entry,
+                ];
+            })->values();
+
+            $total = $normalizedEntries->sum('percentage');
 
             $report = LoeReport::query()->create([
                 'user_id' => $employee->id,
@@ -186,10 +199,12 @@ class DatabaseSeeder extends Seeder
                 'review_notes' => $attributes['review_notes'] ?? null,
             ]);
 
-            foreach ($entries as $projectName => $percentage) {
+            foreach ($normalizedEntries as $entry) {
                 $report->entries()->create([
-                    'project_id' => $projects[$projectName]->id,
-                    'percentage' => $percentage,
+                    'entry_type' => $entry['entry_type'],
+                    'project_id' => $entry['entry_type'] === LoeEntry::ENTRY_TYPE_PROJECT ? $projects[$entry['project_name']]->id : null,
+                    'time_off_type' => $entry['entry_type'] === LoeEntry::ENTRY_TYPE_TIME_OFF ? $entry['time_off_type'] : null,
+                    'percentage' => $entry['percentage'],
                 ]);
             }
 
@@ -246,8 +261,13 @@ class DatabaseSeeder extends Seeder
             $previousPeriod,
             [
                 'Bookflow - Product' => 35,
-                'Content Marketing - M & S' => 40,
+                'Content Marketing - M & S' => 32,
                 'Onboarding - HR & Admin' => 25,
+                [
+                    'entry_type' => LoeEntry::ENTRY_TYPE_TIME_OFF,
+                    'time_off_type' => 'public_holiday',
+                    'percentage' => 8,
+                ],
             ],
             'approved',
             [
@@ -263,8 +283,13 @@ class DatabaseSeeder extends Seeder
             $currentPeriod,
             [
                 'Bookflow - Product' => 30,
-                'Content Marketing - M & S' => 32,
+                'Content Marketing - M & S' => 24,
                 'Onboarding - HR & Admin' => 20,
+                [
+                    'entry_type' => LoeEntry::ENTRY_TYPE_TIME_OFF,
+                    'time_off_type' => 'vacation',
+                    'percentage' => 8,
+                ],
             ],
             'draft'
         );
@@ -304,9 +329,14 @@ class DatabaseSeeder extends Seeder
             $employees['EMP-004'],
             $previousPeriod,
             [
-                'PixelEdge Processes - Project' => 50,
+                'PixelEdge Processes - Project' => 42,
                 'Sales Pipeline - M & S' => 20,
                 'General HR - HR & Admin' => 30,
+                [
+                    'entry_type' => LoeEntry::ENTRY_TYPE_TIME_OFF,
+                    'time_off_type' => 'sick_leave',
+                    'percentage' => 8,
+                ],
             ],
             'approved',
             [

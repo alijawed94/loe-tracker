@@ -38,9 +38,14 @@ class ReportService
                 'submitted_at' => optional($report->submitted_at)?->toIso8601String(),
                 'entries' => $report->entries->map(fn ($entry) => [
                     'id' => $entry->id,
+                    'entry_type' => $entry->entry_type,
+                    'entry_type_label' => $entry->entryTypeLabel(),
+                    'entry_label' => $entry->displayName(),
                     'project' => $entry->project?->name,
-                    'engagement_type' => $entry->project?->engagement_type,
-                    'engagement_type_label' => $entry->project?->engagement_type_label,
+                    'time_off_type' => $entry->time_off_type,
+                    'time_off_type_label' => $entry->timeOffTypeLabel(),
+                    'engagement_type' => $entry->entry_type === 'time_off' ? 'time_off' : $entry->project?->engagement_type,
+                    'engagement_type_label' => $entry->entry_type === 'time_off' ? 'Time Off' : $entry->project?->engagement_type_label,
                     'percentage' => (float) $entry->percentage,
                 ])->values()->all(),
             ]);
@@ -127,7 +132,9 @@ class ReportService
 
         return $users->map(function (User $user) {
             $report = $user->loeReports->first();
-            $actualByProject = collect($report?->entries ?? [])->mapWithKeys(fn ($entry) => [$entry->project_id => (float) $entry->percentage]);
+            $actualByProject = collect($report?->entries ?? [])
+                ->filter(fn ($entry) => $entry->project_id)
+                ->mapWithKeys(fn ($entry) => [$entry->project_id => (float) $entry->percentage]);
 
             return [
                 'employee' => $user->name,
