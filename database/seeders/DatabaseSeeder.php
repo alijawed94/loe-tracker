@@ -84,52 +84,64 @@ class DatabaseSeeder extends Seeder
             return $user;
         });
 
-        $projects = collect([
-            [
-                'name' => 'Aurora Commerce',
-                'engagement' => 'Northwind Group',
-                'description' => 'Core commerce platform modernization.',
-                'engagement_type' => 'project',
+        $projectCatalog = collect([
+            ['name' => 'AngelCatalyst (ACA) - Product', 'engagement' => 'AngelCatalyst (ACA)', 'engagement_type' => 'product'],
+            ['name' => 'BDC - Product', 'engagement' => 'BDC', 'engagement_type' => 'product'],
+            ['name' => 'LKM - Product', 'engagement' => 'LKM', 'engagement_type' => 'product'],
+            ['name' => 'Bookflow - Product', 'engagement' => 'Bookflow', 'engagement_type' => 'product'],
+            ['name' => 'Desi Folks Music - Product', 'engagement' => 'Desi Folks Music', 'engagement_type' => 'product'],
+            ['name' => 'Energy Intel (ICAST) - Product', 'engagement' => 'Energy Intel (ICAST)', 'engagement_type' => 'product'],
+            ['name' => 'EPR Complete - Product', 'engagement' => 'EPR Complete', 'engagement_type' => 'product'],
+            ['name' => 'ERMAssess (HSI) - Product', 'engagement' => 'ERMAssess (HSI)', 'engagement_type' => 'product'],
+            ['name' => 'ERMClarity (PSI) - Product', 'engagement' => 'ERMClarity (PSI)', 'engagement_type' => 'product'],
+            ['name' => 'Netzero Compass (Bigfoot) - Product', 'engagement' => 'Netzero Compass (Bigfoot)', 'engagement_type' => 'product'],
+            ['name' => 'Other - Product', 'engagement' => 'Other', 'engagement_type' => 'product'],
+            ['name' => 'PixelEdge Platform - Product', 'engagement' => 'PixelEdge Platform', 'engagement_type' => 'product'],
+            ['name' => 'Project Intel - Product', 'engagement' => 'Project Intel', 'engagement_type' => 'product'],
+            ['name' => 'Quatro - Product', 'engagement' => 'Quatro', 'engagement_type' => 'product'],
+            ['name' => 'EcoTours - Project', 'engagement' => 'EcoTours', 'engagement_type' => 'project'],
+            ['name' => 'ICAST - Salesforce - Project', 'engagement' => 'ICAST - Salesforce', 'engagement_type' => 'project'],
+            ['name' => 'Kainaat - Project', 'engagement' => 'Kainaat', 'engagement_type' => 'project'],
+            ['name' => 'Lansweeper - Project', 'engagement' => 'Lansweeper', 'engagement_type' => 'project'],
+            ['name' => 'PixelEdge Processes - Project', 'engagement' => 'PixelEdge Processes', 'engagement_type' => 'project'],
+            ['name' => 'Sahr - Project', 'engagement' => 'Sahr', 'engagement_type' => 'project'],
+            ['name' => 'Collateral  - M & S', 'engagement' => 'Collateral ', 'engagement_type' => 'marketing'],
+            ['name' => 'Content Marketing - M & S', 'engagement' => 'Content Marketing', 'engagement_type' => 'marketing'],
+            ['name' => 'Digital Marketing - M & S', 'engagement' => 'Digital Marketing', 'engagement_type' => 'marketing'],
+            ['name' => 'Sales Pipeline - M & S', 'engagement' => 'Sales Pipeline', 'engagement_type' => 'marketing'],
+            ['name' => 'General HR - HR & Admin', 'engagement' => 'General HR', 'engagement_type' => 'admin'],
+            ['name' => 'Onboarding - HR & Admin', 'engagement' => 'Onboarding', 'engagement_type' => 'admin'],
+            ['name' => 'Recruiting - HR & Admin', 'engagement' => 'Recruiting', 'engagement_type' => 'admin'],
+            ['name' => 'CH Capital - Project', 'engagement' => 'CH Capital', 'engagement_type' => 'project'],
+            ['name' => 'Value Navigator - Project', 'engagement' => 'Value Navigator', 'engagement_type' => 'project'],
+            ['name' => 'TRI Data Governance - Project', 'engagement' => 'TRI Data Governance', 'engagement_type' => 'project'],
+            ['name' => 'EPCRA - Part II - Project', 'engagement' => 'EPCRA - Part II', 'engagement_type' => 'project'],
+            ['name' => 'LoanEdge - Product', 'engagement' => 'LoanEdge', 'engagement_type' => 'product'],
+        ]);
+
+        $projects = $projectCatalog
+            ->map(fn (array $project) => [
+                ...$project,
+                'description' => "{$project['engagement']} seeded project catalogue entry.",
                 'status' => true,
-            ],
-            [
-                'name' => 'Pulse CRM',
-                'engagement' => 'Internal Product',
-                'description' => 'Internal customer relationship product.',
-                'engagement_type' => 'product',
-                'status' => true,
-            ],
-            [
-                'name' => 'Spring Brand Sprint',
-                'engagement' => 'Growth',
-                'description' => 'Campaign design and content execution.',
-                'engagement_type' => 'marketing',
-                'status' => true,
-            ],
-            [
-                'name' => 'People Operations',
-                'engagement' => 'Company Admin',
-                'description' => 'Operational and internal support effort.',
-                'engagement_type' => 'admin',
-                'status' => true,
-            ],
-        ])->map(fn (array $project) => Project::query()->firstOrCreate(['name' => $project['name']], $project));
+            ])
+            ->map(fn (array $project) => Project::query()->firstOrCreate(['name' => $project['name']], $project));
 
         $allocationMatrix = [
             'EMP-002' => [
-                'Aurora Commerce' => 60,
-                'Pulse CRM' => 25,
-                'People Operations' => 15,
+                'EcoTours - Project' => 50,
+                'PixelEdge Platform - Product' => 30,
+                'Recruiting - HR & Admin' => 20,
             ],
             'EMP-003' => [
-                'Pulse CRM' => 50,
-                'Spring Brand Sprint' => 35,
-                'People Operations' => 15,
+                'Bookflow - Product' => 40,
+                'Content Marketing - M & S' => 35,
+                'Onboarding - HR & Admin' => 25,
             ],
             'EMP-004' => [
-                'Aurora Commerce' => 45,
-                'Pulse CRM' => 35,
-                'People Operations' => 20,
+                'LoanEdge - Product' => 45,
+                'TRI Data Governance - Project' => 35,
+                'General HR - HR & Admin' => 20,
             ],
         ];
 

@@ -7,13 +7,27 @@ use App\Http\Requests\Admin\StoreProjectRequest;
 use App\Http\Requests\Admin\UpdateProjectRequest;
 use App\Models\Project;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class ProjectController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
+        $search = trim((string) $request->string('search')->value());
+
         return response()->json(
-            Project::query()->withTrashed()->orderBy('name')->get()
+            Project::query()
+                ->withTrashed()
+                ->when($search !== '', function ($query) use ($search) {
+                    $query->where(function ($innerQuery) use ($search) {
+                        $innerQuery
+                            ->where('id', 'like', "%{$search}%")
+                            ->orWhere('name', 'like', "%{$search}%")
+                            ->orWhere('engagement', 'like', "%{$search}%");
+                    });
+                })
+                ->orderBy('name')
+                ->get()
         );
     }
 

@@ -43,4 +43,9 @@ class LoeReport extends Model
     {
         return $this->hasMany(LoeEntry::class);
     }
+
+    public function feedback(): HasMany
+    {
+        return $this->hasMany(LoeFeedback::class)->latest();
+    }
 }

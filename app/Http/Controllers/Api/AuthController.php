@@ -213,6 +213,7 @@ class AuthController extends Controller
             'employee_code' => $user->employee_code,
             'designation' => $user->designation,
             'stream' => $user->stream,
+            'stream_label' => $user->stream_label,
             'timezone' => $user->timezone,
             'status' => $user->status,
             'roles' => $user->roles->pluck('name')->values(),

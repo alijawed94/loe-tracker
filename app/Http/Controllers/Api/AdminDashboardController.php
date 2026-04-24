@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\ProjectEngagementType;
 use App\Http\Controllers\Controller;
 use App\Models\Allocation;
 use App\Models\LoeReport;
@@ -30,10 +31,25 @@ class AdminDashboardController extends Controller
                 'current_allocation_total' => (float) Allocation::query()->sum('percentage'),
             ],
             'charts' => [
+                'project_allocation_headcount' => Project::query()
+                    ->withCount('allocations')
+                    ->where('status', true)
+                    ->orderBy('name')
+                    ->get()
+                    ->map(fn (Project $project) => [
+                        'project_name' => $project->name,
+                        'allocated_people' => (int) $project->allocations_count,
+                    ])
+                    ->values(),
                 'engagement_distribution' => Project::query()
                     ->selectRaw('engagement_type, count(*) as total')
                     ->groupBy('engagement_type')
                     ->get()
+                    ->map(fn ($row) => [
+                        'engagement_type' => $row->engagement_type,
+                        'engagement_type_label' => ProjectEngagementType::from($row->engagement_type)->label(),
+                        'total' => $row->total,
+                    ])
                     ->values(),
                 'submission_trend' => collect(range(5, 0))->reverse()->map(function ($offset) {
                     $date = now()->subMonths($offset);

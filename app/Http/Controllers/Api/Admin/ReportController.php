@@ -23,7 +23,7 @@ class ReportController extends Controller
         [$month, $year] = $this->resolvePeriod($request);
 
         return response()->json([
-            'employee_monthly' => $this->reportService->employeeMonthly($month, $year, $request->validated('user_id')),
+            'employee_monthly' => $this->reportService->employeeMonthly($request->validated('user_id')),
             'employee_yearly' => $this->reportService->employeeYearly($year, $request->validated('user_id')),
             'project_summary' => $this->reportService->projectSummary($month, $year, $request->validated('project_id')),
             'missing_submissions' => $this->reportService->missingSubmissions($month, $year),
@@ -42,7 +42,7 @@ class ReportController extends Controller
             'project-summary' => ['Project Monthly Summary', collect($this->reportService->projectSummary($month, $year, $request->validated('project_id')))],
             'missing-submissions' => ['Missing Submissions', collect($this->reportService->missingSubmissions($month, $year))],
             'allocation-variance' => ['Allocation Variance', $this->flattenVarianceRows($this->reportService->allocationVariance($month, $year, $request->validated('user_id')))],
-            default => ['Employee Monthly Summary', $this->flattenMonthlyRows($this->reportService->employeeMonthly($month, $year, $request->validated('user_id')))],
+            default => ['Employee Monthly Summary', $this->flattenMonthlyRows($this->reportService->employeeMonthly($request->validated('user_id')))],
         };
 
         $headings = array_keys($rows->first() ?? ['No data' => '']);
@@ -95,14 +95,15 @@ class ReportController extends Controller
 
     protected function flattenMonthlyRows($reports)
     {
-        return collect($reports)->flatMap(fn ($report) => collect($report['entries'])->map(fn ($entry) => [
+        return collect($reports)->map(fn ($report) => [
             'Employee' => $report['employee'],
             'Employee Code' => $report['employee_code'],
+            'Stream' => $report['stream_label'] ?? $report['stream'],
             'Month' => sprintf('%02d/%04d', $report['month'], $report['year']),
-            'Project' => $entry['project'],
-            'Engagement Type' => $entry['engagement_type'],
-            'Percentage' => $entry['percentage'],
-        ]));
+            'Total Percentage' => $report['total_percentage'],
+            'Status' => $report['loe_status'],
+            'Submitted At' => $report['submitted_at'],
+        ]);
     }
 
     protected function flattenYearlyRows($rows)

@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\AdminDashboardController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\EmployeeDashboardController;
 use App\Http\Controllers\Api\EmployeeLoeReportController;
+use App\Http\Controllers\Api\LoeFeedbackController;
 use App\Http\Controllers\Api\NotificationController;
 use Illuminate\Support\Facades\Route;
 
@@ -27,13 +28,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
     Route::post('/notifications/{notification}/read', [NotificationController::class, 'markAsRead']);
+    Route::get('/loe-reports/{loeReport}/feedback', [LoeFeedbackController::class, 'index']);
+    Route::post('/loe-reports/{loeReport}/feedback', [LoeFeedbackController::class, 'store']);
 
     Route::prefix('employee')->middleware('role:employee')->group(function () {
         Route::get('/dashboard', EmployeeDashboardController::class);
         Route::get('/reports/export', [EmployeeLoeReportController::class, 'export']);
         Route::apiResource('reports', EmployeeLoeReportController::class)
-            ->parameters(['reports' => 'employeeLoeReport'])
-            ->except('destroy');
+            ->parameters(['reports' => 'employeeLoeReport']);
     });
 
     Route::prefix('admin')->middleware('role:admin')->group(function () {
@@ -41,6 +43,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/activity-logs', [ActivityLogController::class, 'index']);
         Route::get('/reports', [ReportController::class, 'index']);
         Route::get('/reports/export', [ReportController::class, 'export']);
+        Route::get('/users/{user}/loe-reports', [UserController::class, 'loeReports']);
+        Route::get('/users/{user}/loe-reports/export', [UserController::class, 'exportLoeReports']);
         Route::apiResource('users', UserController::class);
         Route::apiResource('projects', ProjectController::class);
         Route::apiResource('allocations', AllocationController::class);

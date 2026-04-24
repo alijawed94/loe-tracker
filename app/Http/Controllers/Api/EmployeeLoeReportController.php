@@ -33,8 +33,6 @@ class EmployeeLoeReportController extends Controller
         $user = $request->user();
         $payload = $request->validated();
 
-        abort_if(LoePeriod::isClosed($payload['month'], $payload['year'], $user), 422, 'The selected month is already locked.');
-
         abort_if(
             LoeReport::query()->where('user_id', $user->id)->where('month', $payload['month'])->where('year', $payload['year'])->exists(),
             422,
@@ -90,6 +88,17 @@ class EmployeeLoeReportController extends Controller
         return response()->json($employeeLoeReport);
     }
 
+    public function destroy(Request $request, LoeReport $employeeLoeReport): JsonResponse
+    {
+        abort_unless($employeeLoeReport->user_id === $request->user()->id, 403);
+
+        $employeeLoeReport->delete();
+
+        return response()->json([
+            'message' => 'LOE deleted successfully.',
+        ]);
+    }
+
     public function export(Request $request): Response
     {
         $user = $request->user();
@@ -99,13 +108,13 @@ class EmployeeLoeReportController extends Controller
         $reports = $user->loeReports()
             ->with('entries.project')
             ->where('year', $year)
-            ->when($request->filled('month'), fn ($query) => $query->where('month', $month))
+            ->when($request->filled('month'), fn($query) => $query->where('month', $month))
             ->get();
 
-        $rows = $reports->flatMap(fn ($report) => $report->entries->map(fn ($entry) => [
-            'Month' => sprintf('%02d/%04d', $report->month, $report->year),
+        $rows = $reports->flatMap(fn($report) => $report->entries->map(fn($entry) => [
+            'Month/Year' => sprintf('%02d/%04d', $report->month, $report->year),
             'Project' => $entry->project?->name,
-            'Engagement Type' => $entry->project?->engagement_type,
+            'Engagement Type' => $entry->project?->engagement_type_label,
             'Percentage' => (float) $entry->percentage,
         ]));
 
@@ -129,7 +138,7 @@ class EmployeeLoeReportController extends Controller
 
         $pdf = Pdf::loadView('exports.report', [
             'title' => 'Employee LOE Report',
-            'subtitle' => $user->name.' ('.$user->employee_code.')',
+            'subtitle' => $user->name . ' (' . $user->employee_code . ')',
             'rows' => $rows,
             'headings' => array_keys($rows->first() ?? ['Month' => '', 'Project' => '', 'Engagement Type' => '', 'Percentage' => '']),
         ]);

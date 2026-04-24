@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ProjectEngagementType;
 use App\Models\Concerns\LogsModelActivity;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -26,6 +27,10 @@ class Project extends Model
         'status',
     ];
 
+    protected $appends = [
+        'engagement_type_label',
+    ];
+
     protected function casts(): array
     {
         return [
@@ -41,5 +46,10 @@ class Project extends Model
     public function loeEntries(): HasMany
     {
         return $this->hasMany(LoeEntry::class);
+    }
+
+    public function getEngagementTypeLabelAttribute(): string
+    {
+        return ProjectEngagementType::from($this->engagement_type)->label();
     }
 }

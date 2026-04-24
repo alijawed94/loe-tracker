@@ -15,6 +15,7 @@ class EmployeeDashboardController extends Controller
         $user = $request->user()->load([
             'allocations.project',
             'loeReports.entries.project',
+            'loeReports.feedback.user.roles',
         ]);
 
         $now = now($user->timezone);
@@ -38,6 +39,16 @@ class EmployeeDashboardController extends Controller
                     'project_name' => $entry->project?->name,
                     'percentage' => (float) $entry->percentage,
                 ])->values(),
+                'feedback' => $report->feedback->map(fn ($feedback) => [
+                    'id' => $feedback->id,
+                    'message' => $feedback->message,
+                    'created_at' => optional($feedback->created_at)?->toIso8601String(),
+                    'author' => [
+                        'id' => $feedback->user->id,
+                        'name' => $feedback->user->name,
+                        'roles' => $feedback->user->roles->pluck('name')->values()->all(),
+                    ],
+                ])->values(),
             ]);
 
         return response()->json([
@@ -59,6 +70,16 @@ class EmployeeDashboardController extends Controller
                     'project_name' => $entry->project?->name,
                     'percentage' => (float) $entry->percentage,
                 ])->values(),
+                'feedback' => $currentReport->feedback->map(fn ($feedback) => [
+                    'id' => $feedback->id,
+                    'message' => $feedback->message,
+                    'created_at' => optional($feedback->created_at)?->toIso8601String(),
+                    'author' => [
+                        'id' => $feedback->user->id,
+                        'name' => $feedback->user->name,
+                        'roles' => $feedback->user->roles->pluck('name')->values()->all(),
+                    ],
+                ])->values(),
             ] : null,
             'reports' => $reports,
             'allocations' => $user->allocations->map(fn ($allocation) => [
@@ -76,6 +97,7 @@ class EmployeeDashboardController extends Controller
                     'name' => $project->name,
                     'engagement' => $project->engagement,
                     'engagement_type' => $project->engagement_type,
+                    'engagement_type_label' => $project->engagement_type_label,
                 ]),
         ]);
     }

@@ -5,30 +5,42 @@ namespace App\Services;
 use App\Models\LoeReport;
 use App\Models\Project;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
 class ReportService
 {
-    public function employeeMonthly(int $month, int $year, ?string $userId = null): Collection
+    public function employeeMonthly(?string $userId = null): Collection
     {
+        $lastMonth = CarbonImmutable::now()->subMonthNoOverflow();
+
         return LoeReport::query()
-            ->with(['user.roles', 'entries.project'])
+            ->with(['user', 'entries.project'])
             ->when($userId, fn (Builder $query) => $query->where('user_id', $userId))
-            ->where('month', $month)
-            ->where('year', $year)
+            ->where('month', $lastMonth->month)
+            ->where('year', $lastMonth->year)
+            ->whereHas('user.roles', fn (Builder $query) => $query->where('name', 'employee'))
+            ->orderBy('user_id')
             ->orderBy('submitted_at', 'desc')
             ->get()
             ->map(fn (LoeReport $report) => [
+                'employee_id' => $report->user->id,
                 'employee' => $report->user->name,
                 'employee_code' => $report->user->employee_code,
+                'stream' => $report->user->stream,
+                'stream_label' => $report->user->stream_label,
                 'month' => $report->month,
                 'year' => $report->year,
                 'total_percentage' => (float) $report->total_percentage,
+                'loe_status' => $this->resolveLoeStatus((float) $report->total_percentage),
+                'loe_status_tone' => $this->resolveLoeStatusTone((float) $report->total_percentage),
                 'submitted_at' => optional($report->submitted_at)?->toIso8601String(),
                 'entries' => $report->entries->map(fn ($entry) => [
+                    'id' => $entry->id,
                     'project' => $entry->project?->name,
                     'engagement_type' => $entry->project?->engagement_type,
+                    'engagement_type_label' => $entry->project?->engagement_type_label,
                     'percentage' => (float) $entry->percentage,
                 ])->values()->all(),
             ]);
@@ -72,6 +84,7 @@ class ReportService
                 'project' => $project->name,
                 'engagement' => $project->engagement,
                 'engagement_type' => $project->engagement_type,
+                'engagement_type_label' => $project->engagement_type_label,
                 'status' => $project->status,
                 'total_percentage' => round($project->loeEntries->sum('percentage'), 2),
                 'contributors' => $project->loeEntries->count(),
@@ -127,5 +140,31 @@ class ReportService
                 ])->values()->all(),
             ];
         })->values();
+    }
+
+    protected function resolveLoeStatus(float $totalPercentage): string
+    {
+        if ($totalPercentage < 50 || $totalPercentage > 110) {
+            return 'Critical';
+        }
+
+        if ($totalPercentage < 90) {
+            return 'Medium';
+        }
+
+        return 'Good';
+    }
+
+    protected function resolveLoeStatusTone(float $totalPercentage): string
+    {
+        if ($totalPercentage < 50 || $totalPercentage > 110) {
+            return 'critical';
+        }
+
+        if ($totalPercentage < 90) {
+            return 'medium';
+        }
+
+        return 'good';
     }
 }

@@ -2,6 +2,7 @@ import axios from 'axios';
 import dayjs from 'dayjs';
 import clsx from 'clsx';
 import { useEffect, useMemo, useState } from 'react';
+import Select from 'react-select';
 import { Navigate, Route, Routes, Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
     Area,
@@ -121,7 +122,7 @@ function LoginPage({ role, user, onAuth }) {
             <div className="grid w-full max-w-6xl gap-8 lg:grid-cols-[1.1fr_0.9fr]">
                 <section className="glass-panel hidden rounded-[2rem] p-10 lg:block">
                     <div className="max-w-xl space-y-6">
-                        <span className="inline-flex rounded-full bg-white/10 px-4 py-2 text-xs uppercase tracking-[0.3em] text-amber-200">
+                        <span className="inline-flex rounded-full brand-badge px-4 py-2 text-xs uppercase tracking-[0.3em]">
                             Level of Effort Tracker
                         </span>
                         <h1 className="text-5xl font-semibold leading-tight text-white">
@@ -135,7 +136,7 @@ function LoginPage({ role, user, onAuth }) {
 
                 <section className="glass-panel rounded-[2rem] p-8 md:p-10">
                     <div className="mb-8">
-                        <p className="text-sm uppercase tracking-[0.25em] text-teal-200">
+                        <p className="text-sm uppercase tracking-[0.25em] brand-kicker">
                             {role === 'admin' ? 'Admin Area' : 'Employee Area'}
                         </p>
                         <h2 className="mt-3 text-3xl font-semibold text-white">
@@ -157,7 +158,7 @@ function LoginPage({ role, user, onAuth }) {
                     </form>
 
                     <div className="mt-4 flex items-center justify-between gap-3 text-sm">
-                        <Link className="text-teal-200 hover:text-teal-100" to={role === 'admin' ? '/admin/forgot-password' : '/forgot-password'}>
+                        <Link className="brand-link" to={role === 'admin' ? '/admin/forgot-password' : '/forgot-password'}>
                             Forgot password?
                         </Link>
                     </div>
@@ -165,7 +166,7 @@ function LoginPage({ role, user, onAuth }) {
                     <p className="mt-6 text-sm text-slate-400">
                         Switch area:
                         {' '}
-                        <Link className="text-amber-300 hover:text-amber-200" to={role === 'admin' ? '/login' : '/admin/login'}>
+                        <Link className="brand-link" to={role === 'admin' ? '/login' : '/admin/login'}>
                             {role === 'admin' ? 'Employee login' : 'Admin login'}
                         </Link>
                     </p>
@@ -202,11 +203,11 @@ function ForgotPasswordPage({ role }) {
             eyebrow={role === 'admin' ? 'Admin Password Reset' : 'Employee Password Reset'}
             title="Forgot your password?"
             subtitle="Enter your email address and we will send you a reset link for this area."
-            footer={<Link className="text-amber-300 hover:text-amber-200" to={role === 'admin' ? '/admin/login' : '/login'}>Back to sign in</Link>}
+            footer={<Link className="brand-link" to={role === 'admin' ? '/admin/login' : '/login'}>Back to sign in</Link>}
         >
             <form className="space-y-4" onSubmit={submit}>
                 <input className="field" placeholder="Email address" type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
-                {message ? <p className="rounded-2xl bg-teal-500/12 px-4 py-3 text-sm text-teal-100">{message}</p> : null}
+                {message ? <p className="rounded-2xl brand-badge px-4 py-3 text-sm">{message}</p> : null}
                 {error ? <p className="rounded-2xl bg-rose-500/15 px-4 py-3 text-sm text-rose-200">{error}</p> : null}
                 <button className="btn btn-primary w-full" disabled={submitting} type="submit">
                     {submitting ? 'Sending link...' : 'Send reset link'}
@@ -256,13 +257,13 @@ function ResetPasswordPage({ role }) {
             eyebrow={role === 'admin' ? 'Admin Password Reset' : 'Employee Password Reset'}
             title="Set a new password"
             subtitle="Choose a strong password for your account in this area."
-            footer={<Link className="text-amber-300 hover:text-amber-200" to={role === 'admin' ? '/admin/login' : '/login'}>Back to sign in</Link>}
+            footer={<Link className="brand-link" to={role === 'admin' ? '/admin/login' : '/login'}>Back to sign in</Link>}
         >
             <form className="space-y-4" onSubmit={submit}>
                 <input className="field" placeholder="Email address" type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} />
                 <input className="field" placeholder="New password" type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} />
                 <input className="field" placeholder="Confirm new password" type="password" value={form.password_confirmation} onChange={(event) => setForm({ ...form, password_confirmation: event.target.value })} />
-                {message ? <p className="rounded-2xl bg-teal-500/12 px-4 py-3 text-sm text-teal-100">{message}</p> : null}
+                {message ? <p className="rounded-2xl brand-badge px-4 py-3 text-sm">{message}</p> : null}
                 {error ? <p className="rounded-2xl bg-rose-500/15 px-4 py-3 text-sm text-rose-200">{error}</p> : null}
                 <button className="btn btn-primary w-full" disabled={submitting} type="submit">
                     {submitting ? 'Resetting password...' : 'Reset password'}
@@ -276,7 +277,7 @@ function AuthCard({ eyebrow, title, subtitle, children, footer }) {
     return (
         <div className="flex min-h-screen items-center justify-center px-4 py-10">
             <div className="glass-panel w-full max-w-xl rounded-[2rem] p-8 md:p-10">
-                <p className="text-sm uppercase tracking-[0.25em] text-teal-200">{eyebrow}</p>
+                <p className="text-sm uppercase tracking-[0.25em] brand-kicker">{eyebrow}</p>
                 <h2 className="mt-3 text-3xl font-semibold text-white">{title}</h2>
                 <p className="mt-3 text-slate-300">{subtitle}</p>
                 <div className="mt-8">{children}</div>
@@ -288,7 +289,7 @@ function AuthCard({ eyebrow, title, subtitle, children, footer }) {
 
 function EmployeeShell({ user, setUser }) {
     return (
-        <Shell title="Employee Workspace" user={user} navItems={employeeNav} accent="teal" setUser={setUser}>
+        <Shell title="Employee Workspace" user={user} navItems={employeeNav} setUser={setUser}>
             <Routes>
                 <Route path="dashboard" element={<EmployeeDashboardPage user={user} />} />
                 <Route path="notifications" element={<NotificationsPage role="employee" />} />
@@ -300,10 +301,11 @@ function EmployeeShell({ user, setUser }) {
 
 function AdminShell({ user, setUser }) {
     return (
-        <Shell title="Admin Command Center" user={user} navItems={adminNav} accent="amber" setUser={setUser}>
+        <Shell title="Admin Command Center" user={user} navItems={adminNav} setUser={setUser}>
             <Routes>
                 <Route path="dashboard" element={<AdminDashboardPage />} />
                 <Route path="users" element={<AdminUsersPage />} />
+                <Route path="users/:userId/loe-reports" element={<AdminUserLoeReportsPage />} />
                 <Route path="projects" element={<AdminProjectsPage />} />
                 <Route path="allocations" element={<AdminAllocationsPage />} />
                 <Route path="reports" element={<AdminReportsPage />} />
@@ -315,7 +317,7 @@ function AdminShell({ user, setUser }) {
     );
 }
 
-function Shell({ title, user, navItems, accent, setUser, children }) {
+function Shell({ title, user, navItems, setUser, children }) {
     const location = useLocation();
     const navigate = useNavigate();
     const [unreadCount, setUnreadCount] = useState(0);
@@ -337,31 +339,29 @@ function Shell({ title, user, navItems, accent, setUser, children }) {
             <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[260px_1fr]">
                 <aside className="glass-panel rounded-[2rem] p-6">
                     <div className="mb-10">
-                        <p className={clsx('text-xs uppercase tracking-[0.3em]', accent === 'amber' ? 'text-amber-200' : 'text-teal-200')}>
-                            {title}
-                        </p>
+                        <p className="text-xs uppercase tracking-[0.3em] brand-kicker">{title}</p>
                         <h1 className="mt-3 text-2xl font-semibold text-white">{user.name}</h1>
                         <p className="text-sm text-slate-400">{user.email}</p>
                     </div>
                     <nav className="space-y-2">
                         {navItems.map((item) => (
                             <Link
-                                  className={clsx(
-                                      'flex items-center justify-between rounded-2xl px-4 py-3 text-sm transition',
-                                      location.pathname === item.to ? 'bg-white/12 text-white' : 'text-slate-300 hover:bg-white/6 hover:text-white',
-                                  )}
+                                className={clsx(
+                                    'flex items-center justify-between rounded-2xl px-4 py-3 text-sm transition',
+                                    location.pathname === item.to ? 'bg-white/12 text-white' : 'text-slate-300 hover:bg-white/6 hover:text-white',
+                                )}
                                 key={item.to}
                                 to={item.to}
-                              >
-                                  <span>{item.label}</span>
-                                  {item.label === 'Notifications' && unreadCount > 0 ? (
-                                      <span className="rounded-full bg-amber-400/20 px-2 py-0.5 text-xs text-amber-200">
-                                          {unreadCount}
-                                      </span>
-                                  ) : null}
-                              </Link>
-                          ))}
-                      </nav>
+                            >
+                                <span>{item.label}</span>
+                                {item.label === 'Notifications' && unreadCount > 0 ? (
+                                    <span className="rounded-full brand-badge px-2 py-0.5 text-xs">
+                                        {unreadCount}
+                                    </span>
+                                ) : null}
+                            </Link>
+                        ))}
+                    </nav>
                     <button className="btn btn-secondary mt-10 w-full" onClick={logout} type="button">Logout</button>
                 </aside>
                 <main className="space-y-6">{children}</main>
@@ -373,10 +373,14 @@ function Shell({ title, user, navItems, accent, setUser, children }) {
 function EmployeeDashboardPage({ user }) {
     const [data, setData] = useState(null);
     const [saving, setSaving] = useState(false);
+    const [deletingReportId, setDeletingReportId] = useState(null);
     const [message, setMessage] = useState('');
     const now = dayjs();
     const [form, setForm] = useState({ month: now.month() + 1, year: now.year(), entries: [{ project_id: '', percentage: '' }] });
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [modalMode, setModalMode] = useState('create');
+    const [editingReportId, setEditingReportId] = useState(null);
+    const [feedbackReport, setFeedbackReport] = useState(null);
 
     const load = async () => {
         const response = await axios.get('/api/employee/dashboard');
@@ -386,11 +390,18 @@ function EmployeeDashboardPage({ user }) {
     useEffect(() => { load(); }, []);
 
     const matchedReport = useMemo(() => data?.reports.find((report) => report.month === Number(form.month) && report.year === Number(form.year)), [data, form]);
-    const isLocked = matchedReport?.is_locked ?? false;
+    const editingReport = useMemo(
+        () => data?.reports.find((report) => report.id === editingReportId) ?? null,
+        [data, editingReportId],
+    );
+    const isEditing = modalMode === 'edit';
+    const isLocked = isEditing ? (editingReport?.is_locked ?? false) : false;
     const totalPercentage = form.entries.reduce((sum, entry) => sum + (Number(entry.percentage) || 0), 0).toFixed(2);
 
     const openCreateModal = () => {
         setMessage('');
+        setModalMode('create');
+        setEditingReportId(null);
         setForm({
             month: data?.current_period.month ?? now.month() + 1,
             year: data?.current_period.year ?? now.year(),
@@ -401,6 +412,8 @@ function EmployeeDashboardPage({ user }) {
 
     const openEditModal = (report) => {
         setMessage('');
+        setModalMode('edit');
+        setEditingReportId(report.id);
         setForm({
             month: report.month,
             year: report.year,
@@ -414,6 +427,8 @@ function EmployeeDashboardPage({ user }) {
     const closeModal = () => {
         if (!saving) {
             setIsModalOpen(false);
+            setModalMode('create');
+            setEditingReportId(null);
         }
     };
 
@@ -439,8 +454,8 @@ function EmployeeDashboardPage({ user }) {
                 })),
             };
 
-            if (matchedReport) {
-                await axios.put(`/api/employee/reports/${matchedReport.id}`, { entries: payload.entries });
+            if (isEditing && editingReport) {
+                await axios.put(`/api/employee/reports/${editingReport.id}`, { entries: payload.entries });
                 setMessage('LOE updated successfully.');
             } else {
                 await axios.post('/api/employee/reports', payload);
@@ -456,14 +471,43 @@ function EmployeeDashboardPage({ user }) {
         }
     };
 
+    const deleteReport = async (report) => {
+        const confirmed = window.confirm(`Delete the LOE report for ${dayjs(`${report.year}-${report.month}-01`).format('MMMM YYYY')}?`);
+
+        if (!confirmed) {
+            return;
+        }
+
+        if (report.is_locked) {
+            const lockedConfirmed = window.confirm('This LOE is from a closed period. Please confirm again to permanently delete it.');
+
+            if (!lockedConfirmed) {
+                return;
+            }
+        }
+
+        setDeletingReportId(report.id);
+        setMessage('');
+
+        try {
+            await axios.delete(`/api/employee/reports/${report.id}`);
+            setMessage('LOE deleted successfully.');
+            await load();
+        } catch (error) {
+            setMessage(error.response?.data?.message ?? 'Unable to delete LOE.');
+        } finally {
+            setDeletingReportId(null);
+        }
+    };
+
     if (!data) return <PageLoader label="Loading employee dashboard..." />;
 
     return (
         <div className="space-y-6">
-            <section className="glass-panel rounded-[2rem] p-8">
+            <section className="glass-panel rounded-[2rem] p-6">
                 <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
                     <div>
-                        <p className="text-sm uppercase tracking-[0.3em] text-teal-200">Monthly effort</p>
+                        <p className="text-sm uppercase tracking-[0.3em] brand-kicker">Monthly effort</p>
                         <h2 className="mt-3 text-3xl font-semibold text-white">Submit or review your LOE</h2>
                         <p className="mt-2 text-slate-300">Deadline for your current month is {dayjs(data.current_period.deadline).format('DD MMM YYYY, hh:mm A')} ({user.timezone}).</p>
                     </div>
@@ -477,15 +521,10 @@ function EmployeeDashboardPage({ user }) {
             </section>
 
             <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-                <section className="glass-panel rounded-[2rem] p-8">
-                    <div className="flex items-start justify-between gap-4">
-                        <div>
-                            <h3 className="text-xl font-semibold text-white">Latest submission</h3>
-                            <p className="mt-2 text-slate-300">Open the LOE modal whenever you need to add a new month or revise an unlocked one.</p>
-                        </div>
-                        {data.current_report && !data.current_report.is_locked ? (
-                            <button className="btn btn-secondary" onClick={() => openEditModal(data.current_report)} type="button">Edit current month</button>
-                        ) : null}
+                <section className="glass-panel rounded-[2rem] p-6">
+                    <div>
+                        <h3 className="text-xl font-semibold text-white">Current Month LOE</h3>
+                        <p className="mt-2 text-slate-300">Use the Add LOE button to add LOE for new month or revise an already submitted one.</p>
                     </div>
 
                     {data.current_report ? (
@@ -493,22 +532,23 @@ function EmployeeDashboardPage({ user }) {
                             <div className="flex flex-wrap items-start justify-between gap-4">
                                 <div>
                                     <p className="text-sm uppercase tracking-[0.2em] text-slate-400">{dayjs(`${data.current_report.year}-${data.current_report.month}-01`).format('MMMM YYYY')}</p>
-                                    <p className="mt-3 text-3xl font-semibold text-white">{data.current_report.total_percentage}%</p>
+                                    <p className="mt-3 text-3xl font-semibold text-white">{formatPercentage(data.current_report.total_percentage)}</p>
                                 </div>
-                                <div className="flex flex-wrap gap-3">
-                                    <span className={clsx('rounded-full px-3 py-1 text-xs uppercase tracking-[0.2em]', data.current_report.is_locked ? 'bg-amber-500/15 text-amber-200' : 'bg-teal-500/15 text-teal-200')}>
-                                        {data.current_report.is_locked ? 'Read only' : 'Editable'}
-                                    </span>
+                                <div className="flex gap-3">
+                                    <button className="btn btn-secondary py-2" onClick={() => setFeedbackReport(data.current_report)} type="button">Feedback</button>
                                     {!data.current_report.is_locked ? (
                                         <button className="btn btn-secondary py-2" onClick={() => openEditModal(data.current_report)} type="button">Edit</button>
                                     ) : null}
+                                    <button className="btn btn-danger py-2" disabled={deletingReportId === data.current_report.id} onClick={() => deleteReport(data.current_report)} type="button">
+                                        {deletingReportId === data.current_report.id ? 'Deleting...' : 'Delete'}
+                                    </button>
                                 </div>
                             </div>
                             <ul className="mt-4 space-y-2 text-sm text-slate-300">
                                 {data.current_report.entries.map((entry) => (
                                     <li className="flex items-center justify-between" key={entry.id}>
                                         <span>{entry.project_name}</span>
-                                        <span>{entry.percentage}%</span>
+                                        <span>{formatPercentage(entry.percentage)}</span>
                                     </li>
                                 ))}
                             </ul>
@@ -520,8 +560,8 @@ function EmployeeDashboardPage({ user }) {
                     )}
                 </section>
 
-                <section className="glass-panel rounded-[2rem] p-8">
-                    <h3 className="text-xl font-semibold text-white">Current allocations</h3>
+                <section className="glass-panel rounded-[2rem] p-6">
+                    <h3 className="text-xl font-semibold text-white">Current Allocations</h3>
                     <div className="mt-5 space-y-3">
                         {data.allocations.map((allocation) => (
                             <div className="rounded-2xl border border-white/10 bg-slate-950/25 p-4" key={allocation.id}>
@@ -529,7 +569,7 @@ function EmployeeDashboardPage({ user }) {
                                     <div>
                                         <p className="font-medium text-white">{allocation.project_name}</p>
                                     </div>
-                                    <span className="text-amber-300">{allocation.percentage}%</span>
+                                    <span className="brand-kicker">{formatPercentage(allocation.percentage)}</span>
                                 </div>
                             </div>
                         ))}
@@ -538,39 +578,91 @@ function EmployeeDashboardPage({ user }) {
             </div>
 
             <section className="glass-panel rounded-[2rem] p-8">
-                <h3 className="text-xl font-semibold text-white">Previous submissions</h3>
-                <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                    {data.reports.map((report) => (
-                        <article className="rounded-3xl border border-white/10 bg-slate-950/25 p-5" key={report.id}>
-                            <div className="flex items-start justify-between gap-3">
-                                <div>
-                                    <p className="text-sm uppercase tracking-[0.2em] text-slate-400">{dayjs(`${report.year}-${report.month}-01`).format('MMMM YYYY')}</p>
-                                    <p className="mt-3 text-3xl font-semibold text-white">{report.total_percentage}%</p>
-                                </div>
-                                {!report.is_locked ? <button className="btn btn-secondary py-2" onClick={() => openEditModal(report)} type="button">Edit</button> : null}
-                            </div>
-                            <ul className="mt-4 space-y-2 text-sm text-slate-300">
-                                {report.entries.map((entry) => (
-                                    <li className="flex items-center justify-between" key={entry.id}>
-                                        <span>{entry.project_name}</span>
-                                        <span>{entry.percentage}%</span>
-                                    </li>
-                                ))}
-                            </ul>
-                        </article>
-                    ))}
+                <h3 className="text-xl font-semibold text-white">Previous Submissions</h3>
+                <div className="mt-5 overflow-auto">
+                    <table className="min-w-full text-left text-sm text-slate-200">
+                        <thead className="text-slate-400">
+                            <tr>
+                                <th className="pb-4 pr-4">Month / Year</th>
+                                <th className="pb-4 pr-4">Total</th>
+                                <th className="pb-4 pr-4">Project</th>
+                                <th className="pb-4 pr-4">Percentage</th>
+                                <th className="pb-4">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {data.reports.map((report) => (
+                                report.entries.map((entry, entryIndex) => (
+                                    <tr className="border-t border-white/8 align-top" key={`${report.id}-${entry.id}`}>
+                                        {entryIndex === 0 ? (
+                                            <>
+                                                <td className="py-4 pr-4" rowSpan={report.entries.length}>
+                                                    <div>
+                                                        <p className="font-semibold text-white">{dayjs(`${report.year}-${report.month}-01`).format('MMMM YYYY')}</p>
+                                                    </div>
+                                                </td>
+                                                <td className="py-4 pr-4" rowSpan={report.entries.length}>
+                                                    <span className="font-semibold text-white">{formatPercentage(report.total_percentage)}</span>
+                                                </td>
+                                            </>
+                                        ) : null}
+                                        <td className="py-4 pr-4">{entry.project_name}</td>
+                                        <td className="py-4 pr-4">{formatPercentage(entry.percentage)}</td>
+                                        {entryIndex === 0 ? (
+                                            <td className="py-4" rowSpan={report.entries.length}>
+                                                <div className="flex gap-2">
+                                                    <button className="btn btn-secondary py-2" onClick={() => setFeedbackReport(report)} type="button">Feedback</button>
+                                                    {!report.is_locked ? (
+                                                        <button className="btn btn-secondary py-2" onClick={() => openEditModal(report)} type="button">Edit</button>
+                                                    ) : null}
+                                                    <button className="btn btn-danger py-2" disabled={deletingReportId === report.id} onClick={() => deleteReport(report)} type="button">
+                                                        {deletingReportId === report.id ? 'Deleting...' : 'Delete'}
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        ) : null}
+                                    </tr>
+                                ))
+                            ))}
+                        </tbody>
+                    </table>
+                    {!data.reports.length ? (
+                        <div className="rounded-3xl border border-dashed border-white/12 bg-slate-950/20 p-6 text-slate-300">
+                            No previous submissions found yet.
+                        </div>
+                    ) : null}
                 </div>
             </section>
 
             <Modal
                 isOpen={isModalOpen}
-                title={matchedReport ? `Edit LOE for ${dayjs(`${form.year}-${form.month}-01`).format('MMMM YYYY')}` : 'Add monthly LOE'}
+                title={isEditing ? `Edit LOE for ${dayjs(`${form.year}-${form.month}-01`).format('MMMM YYYY')}` : 'Add Monthly LOE'}
                 onClose={closeModal}
             >
                 <form className="space-y-4" onSubmit={submit}>
                     <div className="grid gap-4 md:grid-cols-2">
-                        <input className="field" disabled={Boolean(matchedReport)} min="1" max="12" type="number" value={form.month} onChange={(event) => setForm({ ...form, month: event.target.value })} />
-                        <input className="field" disabled={Boolean(matchedReport)} min="2020" max="2100" type="number" value={form.year} onChange={(event) => setForm({ ...form, year: event.target.value })} />
+                        <select
+                            className="field"
+                            disabled={isEditing}
+                            value={String(form.month ?? '')}
+                            onChange={(event) => setForm({ ...form, month: Number(event.target.value) })}
+                        >
+                            <option value="">Select month</option>
+                            {monthOptions.map((month) => (
+                                <option key={month.value} value={month.value}>{month.label}</option>
+                            ))}
+                        </select>
+                        <select
+                            className="field"
+                            disabled={isEditing}
+                            value={String(form.year ?? '')}
+                            onChange={(event) => setForm({ ...form, year: Number(event.target.value) })}
+                        >
+                            <option value="">Select year</option>
+                            {yearOptions.map((year) => (
+                                <option key={year} value={year}>{year}</option>
+                            ))}
+                        </select>
                     </div>
 
                     {form.entries.map((entry, index) => (
@@ -588,14 +680,22 @@ function EmployeeDashboardPage({ user }) {
 
                     <div className="flex flex-wrap gap-3">
                         <button className="btn btn-secondary" disabled={isLocked} onClick={() => setForm({ ...form, entries: [...form.entries, { project_id: '', percentage: '' }] })} type="button">Add project</button>
-                        <button className="btn btn-primary" disabled={saving || isLocked} type="submit">{saving ? 'Saving...' : matchedReport ? 'Update LOE' : 'Submit LOE'}</button>
+                        <button className="btn btn-primary" disabled={saving || isLocked} type="submit">{saving ? 'Saving...' : isEditing ? 'Update LOE' : 'Submit LOE'}</button>
                     </div>
 
-                    <p className="text-sm text-slate-300">Total percentage: {totalPercentage}%</p>
-                    {isLocked ? <p className="rounded-2xl bg-amber-500/10 px-4 py-3 text-sm text-amber-100">This report is read-only because the selected month has already closed.</p> : null}
+                    <p className="text-sm text-slate-300">Total percentage: {formatPercentage(totalPercentage)}</p>
+                    {isLocked ? <p className="rounded-2xl brand-badge-soft px-4 py-3 text-sm">This report is read-only because the selected month has already closed.</p> : null}
                     {message && isModalOpen ? <p className="rounded-2xl bg-white/8 px-4 py-3 text-sm text-slate-200">{message}</p> : null}
                 </form>
             </Modal>
+
+            <FeedbackThreadModal
+                isOpen={Boolean(feedbackReport)}
+                report={feedbackReport}
+                title={feedbackReport ? `Feedback for ${dayjs(`${feedbackReport.year}-${String(feedbackReport.month).padStart(2, '0')}-01`).format('MMMM YYYY')}` : 'Feedback'}
+                onClose={() => setFeedbackReport(null)}
+                onPosted={load}
+            />
         </div>
     );
 }
@@ -611,62 +711,165 @@ function AdminDashboardPage() {
 
     return (
         <div className="space-y-6">
-            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                {Object.entries(data.metrics).map(([key, value]) => (
-                    <div className="metric-card" key={key}>
-                        <p className="text-sm uppercase tracking-[0.2em] text-slate-400">{key.replaceAll('_', ' ')}</p>
-                        <p className="mt-4 text-3xl font-semibold text-white">{value}</p>
-                    </div>
-                ))}
+            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                {Object.entries(data.metrics)
+                    .filter(([key]) => key !== 'current_allocation_total')
+                    .map(([key, value]) => (
+                        <div className="metric-card" key={key}>
+                            <p className="text-sm uppercase tracking-[0.2em] text-slate-400">{key.replaceAll('_', ' ')}</p>
+                            <p className="mt-4 text-3xl font-semibold text-white">{value}</p>
+                        </div>
+                    ))}
             </section>
-            <section className="grid gap-6 xl:grid-cols-2">
-                <ChartCard title="Submission Trend">
-                    <ResponsiveContainer width="100%" height={280}>
-                        <AreaChart data={data.charts.submission_trend}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                            <XAxis dataKey="month" stroke="#94a3b8" />
-                            <YAxis stroke="#94a3b8" />
-                            <Tooltip />
-                            <Area type="monotone" dataKey="reports" stroke="#2dd4bf" fill="#2dd4bf33" />
-                        </AreaChart>
-                    </ResponsiveContainer>
-                </ChartCard>
-                <ChartCard title="Engagement Distribution">
-                    <ResponsiveContainer width="100%" height={280}>
-                        <PieChart>
-                            <Pie data={data.charts.engagement_distribution} dataKey="total" nameKey="engagement_type" outerRadius={100} fill="#f59e0b" />
-                            <Tooltip />
-                        </PieChart>
-                    </ResponsiveContainer>
-                </ChartCard>
-                <ChartCard title="Allocation vs Actual">
-                    <ResponsiveContainer width="100%" height={320}>
-                        <BarChart data={data.charts.allocation_vs_actual}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                            <XAxis dataKey="project_name" stroke="#94a3b8" />
-                            <YAxis stroke="#94a3b8" />
-                            <Tooltip />
-                            <Bar dataKey="allocation_total" fill="#f59e0b" />
-                            <Bar dataKey="actual_total" fill="#2dd4bf" />
-                        </BarChart>
-                    </ResponsiveContainer>
-                </ChartCard>
-            </section>
+            <ChartCard title="Project Allocation Coverage">
+                <ResponsiveContainer width="100%" height={Math.max(300, data.charts.project_allocation_headcount.length * 28)}>
+                    <BarChart barCategoryGap={8} data={data.charts.project_allocation_headcount} layout="vertical" margin={{ top: 8, right: 24, left: 88, bottom: 8 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                        <XAxis allowDecimals={false} stroke="#94a3b8" type="number" />
+                        <YAxis dataKey="project_name" interval={0} stroke="#94a3b8" tick={{ fontSize: 12 }} type="category" width={220} />
+                        <Tooltip />
+                        <Bar barSize={14} dataKey="allocated_people" fill="#2dd4bf" name="Allocated People" radius={[0, 8, 8, 0]} />
+                    </BarChart>
+                </ResponsiveContainer>
+            </ChartCard>
         </div>
     );
 }
 
 function AdminUsersPage() {
+    const navigate = useNavigate();
+
     return <CrudPage title="Users" endpoint="/api/admin/users" formFactory={() => ({ name: '', email: '', employee_code: '', designation: '', stream: 'engineering', timezone: 'Asia/Karachi', status: true, password: '', roles: ['employee'] })} fields={[
         { key: 'name', label: 'Name' },
         { key: 'email', label: 'Email', type: 'email' },
         { key: 'employee_code', label: 'Employee Code' },
         { key: 'designation', label: 'Designation' },
-        { key: 'stream', label: 'Stream', type: 'select', options: ['engineering', 'experience', 'admin'] },
+        {
+            key: 'stream', label: 'Stream', type: 'select', options: [
+                { value: 'engineering', label: 'Engineering' },
+                { value: 'experience', label: 'Experience' },
+                { value: 'admin', label: 'Admin' },
+            ]
+        },
         { key: 'timezone', label: 'Timezone' },
         { key: 'password', label: 'Password', type: 'password' },
-        { key: 'roles', label: 'Roles (comma separated)', type: 'roles' },
-    ]} />;
+        {
+            key: 'roles', label: 'Roles', type: 'multiselect', options: [
+                { value: 'employee', label: 'Employee' },
+                { value: 'admin', label: 'Admin' },
+            ]
+        },
+    ]} searchPlaceholder="Search by ID, name, email, or employee code" extraRowActions={(row) => (
+        <button className="btn btn-secondary py-2" onClick={() => navigate(`/admin/users/${row.id}/loe-reports`)} type="button">
+            LOEs
+        </button>
+    )} />;
+}
+
+function AdminUserLoeReportsPage() {
+    const { userId } = useParams();
+    const navigate = useNavigate();
+    const [data, setData] = useState(null);
+    const [feedbackReport, setFeedbackReport] = useState(null);
+
+    const load = async () => {
+        const response = await axios.get(`/api/admin/users/${userId}/loe-reports`);
+        setData(response.data);
+    };
+
+    useEffect(() => {
+        load();
+    }, [userId]);
+
+    if (!data) return <PageLoader label="Loading user LOEs..." />;
+
+    return (
+        <div className="space-y-6">
+            <section className="glass-panel rounded-[2rem] p-8">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                        <button className="btn btn-secondary py-2" onClick={() => navigate('/admin/users')} type="button">Back to users</button>
+                        <h2 className="mt-4 text-2xl font-semibold text-white">{data.user.name} LOEs</h2>
+                        <p className="mt-2 text-slate-300">
+                            {[
+                                data.user.employee_code,
+                                data.user.email,
+                                data.user.stream_label,
+                            ].filter(Boolean).join(' • ')}
+                        </p>
+                    </div>
+                    <div className="flex gap-3">
+                        <a className="btn btn-secondary" href={`/api/admin/users/${userId}/loe-reports/export?format=pdf`}>Export PDF</a>
+                        <a className="btn btn-primary" href={`/api/admin/users/${userId}/loe-reports/export?format=xlsx`}>Export Excel</a>
+                    </div>
+                </div>
+            </section>
+
+            <section className="glass-panel rounded-[2rem] p-8">
+                <h3 className="text-xl font-semibold text-white">Submitted LOEs</h3>
+                <div className="mt-5 overflow-auto">
+                    {data.reports.length ? (
+                        <table className="min-w-full text-left text-sm text-slate-200">
+                            <thead className="text-slate-400">
+                                <tr>
+                                    <th className="pb-4 pr-4">Month / Year</th>
+                                    <th className="pb-4 pr-4">Total</th>
+                                    <th className="pb-4 pr-4">Project</th>
+                                    <th className="pb-4 pr-4">Engagement Type</th>
+                                    <th className="pb-4 pr-4">Percentage</th>
+                                    <th className="pb-4 pr-4">Submitted At</th>
+                                    <th className="pb-4">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {data.reports.map((report) => (
+                                    report.entries.map((entry, entryIndex) => (
+                                        <tr className="border-t border-white/8 align-top" key={`${report.id}-${entry.id}`}>
+                                            {entryIndex === 0 ? (
+                                                <>
+                                                    <td className="py-4 pr-4" rowSpan={report.entries.length}>
+                                                        <p className="font-semibold text-white">{dayjs(`${report.year}-${String(report.month).padStart(2, '0')}-01`).format('MMMM YYYY')}</p>
+                                                    </td>
+                                                    <td className="py-4 pr-4" rowSpan={report.entries.length}>
+                                                        <span className="font-semibold text-white">{formatPercentage(report.total_percentage)}</span>
+                                                    </td>
+                                                </>
+                                            ) : null}
+                                            <td className="py-4 pr-4">{entry.project_name}</td>
+                                            <td className="py-4 pr-4">{entry.engagement_type_label ?? entry.engagement_type}</td>
+                                            <td className="py-4 pr-4">{formatPercentage(entry.percentage)}</td>
+                                            {entryIndex === 0 ? (
+                                                <td className="py-4 pr-4" rowSpan={report.entries.length}>
+                                                    {report.submitted_at ? dayjs(report.submitted_at).format('DD MMM YYYY, hh:mm A') : ''}
+                                                </td>
+                                            ) : null}
+                                            {entryIndex === 0 ? (
+                                                <td className="py-4" rowSpan={report.entries.length}>
+                                                    <button className="btn btn-secondary py-2" onClick={() => setFeedbackReport(report)} type="button">Feedback</button>
+                                                </td>
+                                            ) : null}
+                                        </tr>
+                                    ))
+                                ))}
+                            </tbody>
+                        </table>
+                    ) : (
+                        <div className="rounded-3xl border border-dashed border-white/12 bg-slate-950/20 p-6 text-slate-300">
+                            No LOEs found for this user.
+                        </div>
+                    )}
+                </div>
+            </section>
+
+            <FeedbackThreadModal
+                isOpen={Boolean(feedbackReport)}
+                report={feedbackReport}
+                title={feedbackReport ? `Feedback for ${data.user.name} • ${dayjs(`${feedbackReport.year}-${String(feedbackReport.month).padStart(2, '0')}-01`).format('MMMM YYYY')}` : 'Feedback'}
+                onClose={() => setFeedbackReport(null)}
+                onPosted={load}
+            />
+        </div>
+    );
 }
 
 function AdminProjectsPage() {
@@ -674,8 +877,15 @@ function AdminProjectsPage() {
         { key: 'name', label: 'Name' },
         { key: 'engagement', label: 'Engagement' },
         { key: 'description', label: 'Description' },
-        { key: 'engagement_type', label: 'Engagement Type', type: 'select', options: ['project', 'product', 'marketing', 'admin'] },
-    ]} />;
+        {
+            key: 'engagement_type', label: 'Engagement Type', type: 'select', options: [
+                { value: 'project', label: 'Project' },
+                { value: 'product', label: 'Product' },
+                { value: 'marketing', label: 'Marketing' },
+                { value: 'admin', label: 'Admin' },
+            ]
+        },
+    ]} searchPlaceholder="Search by ID, name, or engagement" listKeys={['id', 'name', 'engagement', 'engagement_type']} />;
 }
 
 function AdminAllocationsPage() {
@@ -686,10 +896,37 @@ function AdminAllocationsPage() {
     const [editingId, setEditingId] = useState(null);
     const [message, setMessage] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [search, setSearch] = useState('');
+    const [selectedProjectFilters, setSelectedProjectFilters] = useState([]);
+    const groupedAllocations = useMemo(() => (
+        allocations.reduce((groups, allocation) => {
+            const key = allocation.user_id;
+
+            if (!groups[key]) {
+                groups[key] = {
+                    user_id: allocation.user_id,
+                    employee_name: allocation.user?.name,
+                    rows: [],
+                    total_percentage: 0,
+                };
+            }
+
+            groups[key].rows.push(allocation);
+            groups[key].total_percentage += Number(allocation.percentage ?? 0);
+
+            return groups;
+        }, {})
+    ), [allocations]);
 
     const load = async () => {
+        const params = new URLSearchParams();
+        if (search.trim()) {
+            params.set('search', search.trim());
+        }
+        selectedProjectFilters.forEach((projectId) => params.append('project_ids[]', projectId));
+
         const [allocationResponse, userResponse, projectResponse] = await Promise.all([
-            axios.get('/api/admin/allocations'),
+            axios.get(`/api/admin/allocations?${params.toString()}`),
             axios.get('/api/admin/users'),
             axios.get('/api/admin/projects'),
         ]);
@@ -698,7 +935,7 @@ function AdminAllocationsPage() {
         setProjects(projectResponse.data.filter((project) => !project.deleted_at));
     };
 
-    useEffect(() => { load(); }, []);
+    useEffect(() => { load(); }, [search, selectedProjectFilters]);
 
     const submit = async (event) => {
         event.preventDefault();
@@ -736,37 +973,73 @@ function AdminAllocationsPage() {
                     }} type="button">Add allocation</button>
                 </div>
                 {message ? <p className="mt-5 rounded-2xl bg-white/8 px-4 py-3 text-sm text-slate-200">{message}</p> : null}
+                <div className="mt-5 grid gap-3 lg:grid-cols-[1fr_320px_auto]">
+                    <input className="field" placeholder="Search by employee name, email, employee code, or project" value={search} onChange={(event) => setSearch(event.target.value)} />
+                    <Select
+                        className="react-select-container"
+                        classNamePrefix="react-select"
+                        closeMenuOnSelect={false}
+                        isMulti
+                        options={projects.map((project) => ({ value: project.id, label: project.name }))}
+                        placeholder="Filter by projects"
+                        styles={selectStyles}
+                        value={projects
+                            .filter((project) => selectedProjectFilters.includes(project.id))
+                            .map((project) => ({ value: project.id, label: project.name }))}
+                        onChange={(selectedOptions) => setSelectedProjectFilters((selectedOptions ?? []).map((option) => option.value))}
+                    />
+                    <button className="btn btn-secondary" onClick={() => {
+                        setSearch('');
+                        setSelectedProjectFilters([]);
+                    }} type="button">Clear</button>
+                </div>
                 <div className="mt-6 overflow-auto">
-                    <table className="min-w-full text-left text-sm text-slate-200">
-                        <thead className="text-slate-400">
-                            <tr>
-                                <th className="pb-3">Employee</th>
-                                <th className="pb-3">Project</th>
-                                <th className="pb-3">Percentage</th>
-                                <th className="pb-3">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {allocations.map((allocation) => (
-                                <tr className="border-t border-white/8" key={allocation.id}>
-                                    <td className="py-3">{allocation.user?.name}</td>
-                                    <td className="py-3">{allocation.project?.name}</td>
-                                    <td className="py-3">{allocation.percentage}%</td>
-                                    <td className="py-3">
-                                        <div className="flex gap-2">
-                                            <button className="btn btn-secondary py-2" onClick={() => {
-                                                setEditingId(allocation.id);
-                                                setForm({ user_id: allocation.user_id, project_id: allocation.project_id, percentage: allocation.percentage });
-                                                setMessage('');
-                                                setIsModalOpen(true);
-                                            }} type="button">Edit</button>
-                                            <button className="btn btn-danger py-2" onClick={async () => { await axios.delete(`/api/admin/allocations/${allocation.id}`); await load(); }} type="button">Delete</button>
-                                        </div>
-                                    </td>
+                    {allocations.length ? (
+                        <table className="min-w-full text-left text-sm text-slate-200">
+                            <thead className="text-slate-400">
+                                <tr>
+                                    <th className="pb-3">Employee</th>
+                                    <th className="pb-3">Project</th>
+                                    <th className="pb-3">Percentage</th>
+                                    <th className="pb-3">Total Allocation</th>
+                                    <th className="pb-3">Actions</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {Object.values(groupedAllocations).map((group) => (
+                                    group.rows.map((allocation, index) => (
+                                        <tr className="border-t border-white/8 align-top" key={allocation.id}>
+                                            {index === 0 ? (
+                                                <td className="py-3" rowSpan={group.rows.length}>{group.employee_name}</td>
+                                            ) : null}
+                                            <td className="py-3">{allocation.project?.name}</td>
+                                            <td className="py-3">{formatPercentage(allocation.percentage)}</td>
+                                            {index === 0 ? (
+                                                <td className="py-3 font-medium text-white" rowSpan={group.rows.length}>
+                                                    {formatPercentage(group.total_percentage)}
+                                                </td>
+                                            ) : null}
+                                            <td className="py-3">
+                                                <div className="flex gap-2">
+                                                    <button className="btn btn-secondary py-2" onClick={() => {
+                                                        setEditingId(allocation.id);
+                                                        setForm({ user_id: allocation.user_id, project_id: allocation.project_id, percentage: allocation.percentage });
+                                                        setMessage('');
+                                                        setIsModalOpen(true);
+                                                    }} type="button">Edit</button>
+                                                    <button className="btn btn-danger py-2" onClick={async () => { await axios.delete(`/api/admin/allocations/${allocation.id}`); await load(); }} type="button">Delete</button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))
+                                ))}
+                            </tbody>
+                        </table>
+                    ) : (
+                        <div className="rounded-3xl border border-dashed border-white/12 bg-slate-950/20 p-6 text-slate-300">
+                            No records found.
+                        </div>
+                    )}
                 </div>
             </section>
 
@@ -791,6 +1064,7 @@ function AdminAllocationsPage() {
 
 function AdminReportsPage() {
     const [data, setData] = useState(null);
+    const [selectedMonthlyReport, setSelectedMonthlyReport] = useState(null);
 
     useEffect(() => {
         axios.get('/api/admin/reports').then((response) => setData(response.data));
@@ -798,24 +1072,88 @@ function AdminReportsPage() {
 
     if (!data) return <PageLoader label="Loading reports..." />;
 
+    const lastMonthReference = data.employee_monthly[0]
+        ? dayjs(`${data.employee_monthly[0].year}-${String(data.employee_monthly[0].month).padStart(2, '0')}-01`)
+        : dayjs().subtract(1, 'month');
+    const employeeMonthlyRows = data.employee_monthly.map((row) => ({
+        employee: row.employee,
+        employee_code: row.employee_code,
+        stream: row.stream,
+        stream_label: row.stream_label,
+        total_percentage: row.total_percentage,
+        loe_status: row.loe_status,
+        loe_status_tone: row.loe_status_tone,
+        submitted_at: row.submitted_at,
+        entries: row.entries,
+    }));
+
     return (
         <div className="space-y-6">
             <section className="glass-panel rounded-[2rem] p-8">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <h2 className="text-2xl font-semibold text-white">Reporting center</h2>
-                        <p className="mt-2 text-slate-300">Admin exports are available in branded PDF and Excel formats.</p>
-                    </div>
-                    <div className="flex gap-3">
-                        <a className="btn btn-secondary" href="/api/admin/reports/export?type=employee-monthly&format=pdf">Monthly PDF</a>
-                        <a className="btn btn-primary" href="/api/admin/reports/export?type=employee-monthly&format=xlsx">Monthly Excel</a>
+                        <p className="mt-2 text-slate-300">Employee monthly summary shows the latest submitted LOE from last month for each employee. User-specific exports are available inside each employee LOE history page.</p>
                     </div>
                 </div>
             </section>
 
-            <ReportTable title="Employee Monthly" rows={flattenRows(data.employee_monthly, 'entries')} />
+            <ReportTable
+                title={`Last Month LOEs (${lastMonthReference.format('MMMM YYYY')})`}
+                rows={employeeMonthlyRows}
+                hiddenHeaders={['entries', 'loe_status_tone']}
+                getRowActions={(row) => (
+                    <button className="btn btn-secondary py-2" onClick={() => setSelectedMonthlyReport(row)} type="button">
+                        Details
+                    </button>
+                )}
+            />
             <ReportTable title="Project Summary" rows={data.project_summary} />
             <ReportTable title="Missing Submissions" rows={data.missing_submissions} />
+
+            <Modal
+                isOpen={Boolean(selectedMonthlyReport)}
+                title={selectedMonthlyReport ? `LOE Breakdown for ${selectedMonthlyReport.employee}` : 'LOE Breakdown'}
+                onClose={() => setSelectedMonthlyReport(null)}
+            >
+                {selectedMonthlyReport ? (
+                    <div className="space-y-5">
+                        <div className="rounded-3xl border border-white/10 bg-slate-950/25 p-5">
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                    <p className="text-sm uppercase tracking-[0.2em] text-slate-400">{lastMonthReference.format('MMMM YYYY')}</p>
+                                    <h4 className="mt-2 text-xl font-semibold text-white">{selectedMonthlyReport.employee}</h4>
+                                    <p className="mt-1 text-sm text-slate-300">{selectedMonthlyReport.employee_code}</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-sm text-slate-400">Total LOE</p>
+                                    <p className="mt-2 text-2xl font-semibold text-white">{formatPercentage(selectedMonthlyReport.total_percentage)}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="overflow-auto">
+                            <table className="min-w-full text-left text-sm text-slate-200">
+                                <thead className="text-slate-400">
+                                    <tr>
+                                        <th className="pb-3 pr-4">Project</th>
+                                        <th className="pb-3 pr-4">Engagement Type</th>
+                                        <th className="pb-3 pr-4">Percentage</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {selectedMonthlyReport.entries?.map((entry) => (
+                                        <tr className="border-t border-white/8" key={entry.id}>
+                                            <td className="py-3 pr-4">{entry.project}</td>
+                                            <td className="py-3 pr-4">{entry.engagement_type_label ?? entry.engagement_type}</td>
+                                            <td className="py-3 pr-4">{formatPercentage(entry.percentage)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                ) : null}
+            </Modal>
         </div>
     );
 }
@@ -823,6 +1161,7 @@ function AdminReportsPage() {
 function AdminActivityLogsPage() {
     const [data, setData] = useState(null);
     const [filters, setFilters] = useState({ log_name: '', event: '' });
+    const [selectedActivity, setSelectedActivity] = useState(null);
 
     const load = async (nextFilters = filters) => {
         const params = new URLSearchParams();
@@ -854,6 +1193,51 @@ function AdminActivityLogsPage() {
             </section>
 
             <section className="glass-panel rounded-[2rem] p-8">
+                {data.data.length ? (
+                    <div className="overflow-hidden">
+                        <table className="w-full table-fixed text-left text-sm text-slate-200">
+                            <colgroup>
+                                <col className="w-[13%]" />
+                                <col className="w-[11%]" />
+                                <col className="w-[11%]" />
+                                <col className="w-[28%]" />
+                                <col className="w-[25%]" />
+                                <col className="w-[12%]" />
+                            </colgroup>
+                            <thead className="text-slate-400">
+                                <tr>
+                                    <th className="pb-3 pr-4">When</th>
+                                    <th className="pb-3 pr-4">Module</th>
+                                    <th className="pb-3 pr-4">Event</th>
+                                    <th className="pb-3 pr-4">Summary</th>
+                                    <th className="pb-3 pr-4">Actor</th>
+                                    <th className="pb-3">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {data.data.map((activity) => (
+                                    <tr className="border-t border-white/8 align-top" key={activity.id}>
+                                        <td className="py-3 pr-4 break-words text-xs leading-5">{dayjs(activity.created_at).format('DD MMM YYYY, hh:mm A')}</td>
+                                        <td className="py-3 pr-4 break-words">{humanizeLogName(activity.log_name)}</td>
+                                        <td className="py-3 pr-4 break-words">{humanizeActivityEvent(activity.event)}</td>
+                                        <td className="py-3 pr-4 break-words leading-6">{summarizeActivity(activity)}</td>
+                                        <td className="py-3 pr-4 break-words leading-6">{activity.causer ? `${activity.causer.name} (${activity.causer.email})` : 'System'}</td>
+                                        <td className="py-3 align-middle">
+                                            <button className="btn btn-secondary py-2" onClick={() => setSelectedActivity(activity)} type="button">Details</button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                ) : (
+                    <div className="rounded-3xl border border-dashed border-white/12 bg-slate-950/20 p-6 text-slate-300">
+                        No activity logs found.
+                    </div>
+                )}
+            </section>
+
+            <section className="hidden glass-panel rounded-[2rem] p-8">
                 <div className="space-y-4">
                     {data.data.map((activity) => (
                         <article className="rounded-3xl border border-white/10 bg-slate-950/25 p-5" key={activity.id}>
@@ -884,24 +1268,212 @@ function AdminActivityLogsPage() {
                     ))}
                 </div>
             </section>
+
+            <Modal isOpen={Boolean(selectedActivity)} title="Activity Details" onClose={() => setSelectedActivity(null)}>
+                {selectedActivity ? (
+                    <div className="space-y-5">
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <div className="rounded-2xl bg-slate-900/60 p-4">
+                                <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Action</p>
+                                <p className="mt-2 text-lg font-semibold text-white">{selectedActivity.description}</p>
+                                <p className="mt-2 text-sm text-slate-300">
+                                    {humanizeLogName(selectedActivity.log_name)} • {humanizeActivityEvent(selectedActivity.event)} • {dayjs(selectedActivity.created_at).format('DD MMM YYYY, hh:mm A')}
+                                </p>
+                            </div>
+                            <div className="rounded-2xl bg-slate-900/60 p-4">
+                                <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Context</p>
+                                <p className="mt-2 text-sm text-slate-200">Actor: {selectedActivity.causer ? `${selectedActivity.causer.name} (${selectedActivity.causer.email})` : 'System'}</p>
+                                <p className="mt-2 text-sm text-slate-200">Subject: {selectedActivity.subject ? `${selectedActivity.subject.type} ${selectedActivity.subject.id}` : 'None'}</p>
+                            </div>
+                        </div>
+
+                        <div className="rounded-2xl bg-slate-900/60 p-4">
+                            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">What Happened</p>
+                            <div className="mt-3 space-y-3">
+                                {renderActivityDetails(selectedActivity)}
+                            </div>
+                        </div>
+                    </div>
+                ) : null}
+            </Modal>
         </div>
     );
 }
 
-function CrudPage({ title, endpoint, formFactory, fields }) {
+function renderActivityDetails(activity) {
+    const details = getActivityDetails(activity);
+
+    if (!details.length) {
+        return <p className="text-sm text-slate-300">No additional change details were recorded for this activity.</p>;
+    }
+
+    return details.map((detail, index) => (
+        <div className="rounded-2xl border border-white/8 bg-slate-950/25 p-4" key={`${detail.label}-${index}`}>
+            <p className="text-xs uppercase tracking-[0.18em] text-slate-400">{detail.label}</p>
+            {detail.type === 'text' ? (
+                <p className="mt-2 text-sm text-slate-200">{detail.value}</p>
+            ) : (
+                <div className="mt-3 overflow-auto">
+                    <table className="min-w-full text-left text-sm text-slate-200">
+                        <thead className="text-slate-400">
+                            <tr>
+                                <th className="pb-2 pr-4">Field</th>
+                                {detail.type === 'changes' ? <th className="pb-2 pr-4">Previous</th> : null}
+                                <th className="pb-2 pr-4">{detail.type === 'changes' ? 'Current' : 'Value'}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {detail.items.map((item) => (
+                                <tr className="border-t border-white/8" key={item.field}>
+                                    <td className="py-2 pr-4">{item.field}</td>
+                                    {detail.type === 'changes' ? <td className="py-2 pr-4">{item.previous}</td> : null}
+                                    <td className="py-2 pr-4">{item.current}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </div>
+    ));
+}
+
+function getActivityDetails(activity) {
+    const properties = activity.properties ?? {};
+    const attributes = normalizeActivityValues(properties.attributes);
+    const previous = normalizeActivityValues(properties.old);
+    const details = [];
+
+    const changedFields = Object.keys(attributes).filter((field) => previous[field] !== undefined || activity.event !== 'created');
+
+    if (activity.event === 'updated' && changedFields.length) {
+        details.push({
+            label: 'Changed Fields',
+            type: 'changes',
+            items: changedFields.map((field) => ({
+                field: humanizeKey(field),
+                previous: formatActivityValue(previous[field]),
+                current: formatActivityValue(attributes[field]),
+            })),
+        });
+    } else if (Object.keys(attributes).length) {
+        details.push({
+            label: activity.event === 'created' ? 'Captured Values' : 'Details',
+            type: 'values',
+            items: Object.entries(attributes).map(([field, value]) => ({
+                field: humanizeKey(field),
+                current: formatActivityValue(value),
+            })),
+        });
+    }
+
+    const metadata = Object.entries(properties)
+        .filter(([key]) => !['attributes', 'old'].includes(key))
+        .map(([key, value]) => ({
+            field: humanizeKey(key),
+            current: formatActivityValue(value),
+        }));
+
+    if (metadata.length) {
+        details.push({
+            label: 'Additional Context',
+            type: 'values',
+            items: metadata,
+        });
+    }
+
+    if (!details.length && activity.subject) {
+        details.push({
+            label: 'Summary',
+            type: 'text',
+            value: `${humanizeLogName(activity.log_name)} ${humanizeActivityEvent(activity.event).toLowerCase()} for ${activity.subject.type} ${activity.subject.id}.`,
+        });
+    }
+
+    return details;
+}
+
+function summarizeActivity(activity) {
+    const details = getActivityDetails(activity);
+    const firstTable = details.find((detail) => detail.items?.length);
+
+    if (firstTable?.items?.length) {
+        const firstItem = firstTable.items[0];
+
+        if (firstTable.type === 'changes') {
+            return `${firstItem.field}: ${firstItem.previous} -> ${firstItem.current}`;
+        }
+
+        return `${firstItem.field}: ${firstItem.current}`;
+    }
+
+    return activity.description;
+}
+
+function humanizeLogName(value) {
+    return humanizeKey(String(value ?? '').replace(/_/g, ' '));
+}
+
+function humanizeActivityEvent(value) {
+    if (!value) {
+        return 'Recorded';
+    }
+
+    return humanizeKey(String(value));
+}
+
+function normalizeActivityValues(value) {
+    if (!value) {
+        return {};
+    }
+
+    if (typeof value === 'object' && !Array.isArray(value)) {
+        return value;
+    }
+
+    return {};
+}
+
+function formatActivityValue(value) {
+    if (value === null || value === undefined || value === '') {
+        return 'None';
+    }
+
+    if (Array.isArray(value)) {
+        return value.map((item) => formatActivityValue(item)).join(', ');
+    }
+
+    if (typeof value === 'boolean') {
+        return value ? 'Yes' : 'No';
+    }
+
+    if (typeof value === 'object') {
+        return Object.entries(value).map(([key, itemValue]) => `${humanizeKey(key)}: ${formatActivityValue(itemValue)}`).join(', ');
+    }
+
+    return String(value);
+}
+
+function CrudPage({ title, endpoint, formFactory, fields, searchPlaceholder = 'Search records', listKeys = null, extraRowActions = null }) {
     const [rows, setRows] = useState([]);
     const [form, setForm] = useState(formFactory());
     const [editingId, setEditingId] = useState(null);
     const [message, setMessage] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [search, setSearch] = useState('');
     const singularTitle = singularize(title);
 
     const load = async () => {
-        const response = await axios.get(endpoint);
+        const params = new URLSearchParams();
+        if (search.trim()) {
+            params.set('search', search.trim());
+        }
+
+        const response = await axios.get(`${endpoint}?${params.toString()}`);
         setRows(response.data);
     };
 
-    useEffect(() => { load(); }, [endpoint]);
+    useEffect(() => { load(); }, [endpoint, search]);
 
     const submit = async (event) => {
         event.preventDefault();
@@ -909,6 +1481,7 @@ function CrudPage({ title, endpoint, formFactory, fields }) {
 
         const payload = {
             ...form,
+            status: true,
             roles: typeof form.roles === 'string' ? form.roles.split(',').map((role) => role.trim()).filter(Boolean) : form.roles,
         };
 
@@ -933,8 +1506,7 @@ function CrudPage({ title, endpoint, formFactory, fields }) {
             <section className="glass-panel rounded-[2rem] p-8">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
-                        <h2 className="text-2xl font-semibold text-white">{title} list</h2>
-                        <p className="mt-2 text-slate-300">Create and update {title.toLowerCase()} from a dedicated modal.</p>
+                        <h2 className="text-2xl font-semibold text-white">{title}</h2>
                     </div>
                     <button className="btn btn-primary" onClick={() => {
                         setEditingId(null);
@@ -944,40 +1516,60 @@ function CrudPage({ title, endpoint, formFactory, fields }) {
                     }} type="button">Add {singularTitle}</button>
                 </div>
                 {message ? <p className="mt-5 rounded-2xl bg-white/8 px-4 py-3 text-sm text-slate-200">{message}</p> : null}
+                <div className="mt-5 flex flex-wrap gap-3">
+                    <input className="field flex-1 min-w-72" placeholder={searchPlaceholder} value={search} onChange={(event) => setSearch(event.target.value)} />
+                    <button className="btn btn-secondary" onClick={() => setSearch('')} type="button">Clear</button>
+                </div>
                 <div className="mt-6 overflow-auto">
-                    <table className="min-w-full text-left text-sm text-slate-200">
-                        <thead className="text-slate-400">
-                            <tr>
-                                {Object.keys(rows[0] ?? {}).slice(0, 4).map((key) => <th className="pb-3" key={key}>{key}</th>)}
-                                <th className="pb-3">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {rows.map((row) => (
-                                <tr className="border-t border-white/8" key={row.id}>
-                                    {Object.entries(row).slice(0, 4).map(([key, value]) => (
-                                        <td className="py-3" key={key}>{Array.isArray(value) ? value.map((item) => item.name ?? item).join(', ') : String(value ?? '')}</td>
-                                    ))}
-                                    <td className="py-3">
-                                        <div className="flex gap-2">
-                                            <button className="btn btn-secondary py-2" onClick={() => {
-                                                setEditingId(row.id);
-                                                setForm({
-                                                    ...formFactory(),
-                                                    ...row,
-                                                    roles: row.roles ? row.roles.map((role) => role.name) : formFactory().roles,
-                                                    password: '',
-                                                });
-                                                setMessage('');
-                                                setIsModalOpen(true);
-                                            }} type="button">Edit</button>
-                                            <button className="btn btn-danger py-2" onClick={async () => { await axios.delete(`${endpoint}/${row.id}`); await load(); }} type="button">Archive</button>
-                                        </div>
-                                    </td>
+                    {rows.length ? (
+                        <table className="min-w-full text-left text-sm text-slate-200">
+                            <thead className="text-slate-400">
+                                <tr>
+                                    {(listKeys ?? Object.keys(rows[0] ?? {}).slice(0, 4)).map((key) => <th className="pb-3" key={key}>{humanizeKey(key)}</th>)}
+                                    <th className="pb-3">Actions</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {rows.map((row) => (
+                                    <tr className="border-t border-white/8" key={row.id}>
+                                        {(listKeys ?? Object.keys(row).slice(0, 4)).map((key) => {
+                                            const value = row[key];
+                                            const displayValue = key.endsWith('_type') && row[`${key}_label`]
+                                                ? row[`${key}_label`]
+                                                : key === 'stream' && row.stream_label
+                                                    ? row.stream_label
+                                                    : Array.isArray(value)
+                                                        ? value.map((item) => item.name ?? item.label ?? item).join(', ')
+                                                        : String(value ?? '');
+
+                                            return <td className="py-3" key={key}>{displayValue}</td>;
+                                        })}
+                                        <td className="py-3">
+                                            <div className="flex gap-2">
+                                                {extraRowActions ? extraRowActions(row) : null}
+                                                <button className="btn btn-secondary py-2" onClick={() => {
+                                                    setEditingId(row.id);
+                                                    setForm({
+                                                        ...formFactory(),
+                                                        ...row,
+                                                        roles: row.roles ? row.roles.map((role) => role.name) : formFactory().roles,
+                                                        password: '',
+                                                    });
+                                                    setMessage('');
+                                                    setIsModalOpen(true);
+                                                }} type="button">Edit</button>
+                                                <button className="btn btn-danger py-2" onClick={async () => { await axios.delete(`${endpoint}/${row.id}`); await load(); }} type="button">Archive</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    ) : (
+                        <div className="rounded-3xl border border-dashed border-white/12 bg-slate-950/20 p-6 text-slate-300">
+                            No records found.
+                        </div>
+                    )}
                 </div>
             </section>
 
@@ -986,23 +1578,40 @@ function CrudPage({ title, endpoint, formFactory, fields }) {
                     {fields.map((field) => (
                         field.type === 'select' ? (
                             <select className="field" key={field.key} value={form[field.key] ?? ''} onChange={(event) => setForm({ ...form, [field.key]: event.target.value })}>
-                                {field.options.map((option) => <option key={option} value={option}>{option}</option>)}
+                                {field.options.map((option) => (
+                                    <option key={typeof option === 'string' ? option : option.value} value={typeof option === 'string' ? option : option.value}>
+                                        {typeof option === 'string' ? option : option.label}
+                                    </option>
+                                ))}
                             </select>
+                        ) : field.type === 'multiselect' ? (
+                            <Select
+                                className="react-select-container"
+                                classNamePrefix="react-select"
+                                closeMenuOnSelect={false}
+                                isMulti
+                                key={field.key}
+                                options={field.options.map((option) => typeof option === 'string' ? { value: option, label: option } : option)}
+                                styles={selectStyles}
+                                value={field.options
+                                    .map((option) => typeof option === 'string' ? { value: option, label: option } : option)
+                                    .filter((option) => (Array.isArray(form[field.key]) ? form[field.key] : []).includes(option.value))}
+                                onChange={(selectedOptions) => setForm({
+                                    ...form,
+                                    [field.key]: (selectedOptions ?? []).map((option) => option.value),
+                                })}
+                            />
                         ) : (
                             <input
                                 className="field"
                                 key={field.key}
                                 placeholder={field.label}
                                 type={field.type === 'password' ? 'password' : field.type === 'email' ? 'email' : 'text'}
-                                value={field.type === 'roles' ? (Array.isArray(form[field.key]) ? form[field.key].join(', ') : form[field.key] ?? '') : form[field.key] ?? ''}
+                                value={form[field.key] ?? ''}
                                 onChange={(event) => setForm({ ...form, [field.key]: event.target.value })}
                             />
                         )
                     ))}
-                    <label className="flex items-center gap-3 text-sm text-slate-300">
-                        <input checked={Boolean(form.status)} onChange={(event) => setForm({ ...form, status: event.target.checked })} type="checkbox" />
-                        Active
-                    </label>
                     <button className="btn btn-primary w-full" type="submit">{editingId ? 'Update' : 'Create'} {singularTitle}</button>
                     {message && isModalOpen ? <p className="text-sm text-slate-300">{message}</p> : null}
                 </form>
@@ -1049,7 +1658,7 @@ function NotificationsPage({ role }) {
             <section className="glass-panel rounded-[2rem] p-8">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
-                        <p className={clsx('text-sm uppercase tracking-[0.3em]', role === 'admin' ? 'text-amber-200' : 'text-teal-200')}>
+                        <p className="text-sm uppercase tracking-[0.3em] brand-kicker">
                             Notification center
                         </p>
                         <h2 className="mt-3 text-3xl font-semibold text-white">Updates that need your attention</h2>
@@ -1067,7 +1676,7 @@ function NotificationsPage({ role }) {
             <section className="glass-panel rounded-[2rem] p-8">
                 <div className="space-y-4">
                     {data.notifications.length ? data.notifications.map((notification) => (
-                        <article className={clsx('rounded-3xl border p-5', notification.read_at ? 'border-white/8 bg-slate-950/20' : 'border-teal-400/20 bg-teal-500/8')} key={notification.id}>
+                        <article className={clsx('rounded-3xl border p-5', notification.read_at ? 'border-white/8 bg-slate-950/20' : 'border-[rgba(127,244,228,0.18)] bg-[rgba(0,169,158,0.08)]')} key={notification.id}>
                             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                                 <div>
                                     <p className="text-lg font-semibold text-white">{notification.data.title ?? notification.type}</p>
@@ -1075,7 +1684,7 @@ function NotificationsPage({ role }) {
                                     <p className="mt-3 text-xs uppercase tracking-[0.2em] text-slate-400">{dayjs(notification.created_at).format('DD MMM YYYY, hh:mm A')}</p>
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <span className={clsx('rounded-full px-3 py-1 text-xs uppercase tracking-[0.2em]', notification.read_at ? 'bg-white/8 text-slate-300' : 'bg-amber-500/15 text-amber-200')}>
+                                    <span className={clsx('rounded-full px-3 py-1 text-xs uppercase tracking-[0.2em]', notification.read_at ? 'brand-badge-soft' : 'brand-badge')}>
                                         {notification.read_at ? 'Read' : 'Unread'}
                                     </span>
                                     {!notification.read_at ? (
@@ -1106,27 +1715,163 @@ function ChartCard({ title, children }) {
     );
 }
 
-function ReportTable({ title, rows }) {
-    const headers = Object.keys(rows[0] ?? {});
+function ReportTable({ title, rows, hiddenHeaders = [], getRowActions = null }) {
+    const headers = Object.keys(rows[0] ?? {}).filter((header) => !header.endsWith('_label') && !hiddenHeaders.includes(header));
 
     return (
         <section className="glass-panel rounded-[2rem] p-8">
             <h3 className="text-xl font-semibold text-white">{title}</h3>
             <div className="mt-6 overflow-auto">
-                <table className="min-w-full text-left text-sm text-slate-200">
-                    <thead className="text-slate-400">
-                        <tr>{headers.map((header) => <th className="pb-3 pr-4" key={header}>{header}</th>)}</tr>
-                    </thead>
-                    <tbody>
-                        {rows.map((row, index) => (
-                            <tr className="border-t border-white/8" key={index}>
-                                {headers.map((header) => <td className="py-3 pr-4" key={header}>{String(row[header] ?? '')}</td>)}
+                {rows.length ? (
+                    <table className="min-w-full text-left text-sm text-slate-200">
+                        <thead className="text-slate-400">
+                            <tr>
+                                {headers.map((header) => <th className="pb-3 pr-4" key={header}>{humanizeKey(header)}</th>)}
+                                {getRowActions ? <th className="pb-3 pr-4">Actions</th> : null}
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {rows.map((row, index) => (
+                                <tr className="border-t border-white/8" key={index}>
+                                    {headers.map((header) => {
+                                        const value = header.endsWith('_type') && row[`${header}_label`]
+                                            ? row[`${header}_label`]
+                                            : header === 'stream' && row.stream_label
+                                                ? row.stream_label
+                                                : row[header];
+
+                                        if (header === 'loe_status') {
+                                            return (
+                                                <td className="py-3 pr-4" key={header}>
+                                                    <span className={clsx('report-status-badge', `report-status-${row.loe_status_tone ?? 'good'}`)}>
+                                                        {String(value ?? '')}
+                                                    </span>
+                                                </td>
+                                            );
+                                        }
+
+                                        if (header === 'submitted_at') {
+                                            return <td className="py-3 pr-4" key={header}>{value ? dayjs(value).format('DD MMM YYYY, hh:mm A') : ''}</td>;
+                                        }
+
+                                        return <td className="py-3 pr-4" key={header}>{formatDisplayValue(header, value)}</td>;
+                                    })}
+                                    {getRowActions ? <td className="py-3 pr-4">{getRowActions(row)}</td> : null}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                ) : (
+                    <div className="rounded-3xl border border-dashed border-white/12 bg-slate-950/20 p-6 text-slate-300">
+                        No records found.
+                    </div>
+                )}
             </div>
         </section>
+    );
+}
+
+function FeedbackThreadModal({ isOpen, report, title, onClose, onPosted }) {
+    const [feedback, setFeedback] = useState([]);
+    const [message, setMessage] = useState('');
+    const [submitting, setSubmitting] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+
+    useEffect(() => {
+        if (!isOpen || !report) {
+            setFeedback([]);
+            setMessage('');
+            setError('');
+            return;
+        }
+
+        setFeedback(report.feedback ?? []);
+        setLoading(true);
+        axios.get(`/api/loe-reports/${report.id}/feedback`)
+            .then((response) => setFeedback(response.data.feedback ?? []))
+            .catch(() => setError('Unable to load feedback right now.'))
+            .finally(() => setLoading(false));
+    }, [isOpen, report]);
+
+    if (!report) {
+        return null;
+    }
+
+    const submit = async (event) => {
+        event.preventDefault();
+        setSubmitting(true);
+        setError('');
+
+        try {
+            const response = await axios.post(`/api/loe-reports/${report.id}/feedback`, { message });
+            setFeedback((current) => [...current, response.data]);
+            setMessage('');
+            await onPosted?.();
+        } catch (requestError) {
+            setError(requestError.response?.data?.message ?? 'Unable to send feedback right now.');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    return (
+        <Modal isOpen={isOpen} title={title} onClose={onClose}>
+            <div className="space-y-5">
+                <div className="rounded-3xl border border-white/10 bg-slate-950/25 p-5">
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div>
+                            <p className="text-sm uppercase tracking-[0.2em] text-slate-400">LOE Feedback Thread</p>
+                            <p className="mt-2 text-lg font-semibold text-white">{dayjs(`${report.year}-${String(report.month).padStart(2, '0')}-01`).format('MMMM YYYY')}</p>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-sm text-slate-400">Total LOE</p>
+                            <p className="mt-2 text-lg font-semibold text-white">{formatPercentage(report.total_percentage ?? 0)}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="space-y-3">
+                    {loading ? <div className="rounded-3xl border border-white/10 bg-slate-950/20 p-5 text-slate-300">Loading feedback...</div> : null}
+                    {!loading && feedback.length ? feedback.map((item) => {
+                        const isAdminAuthor = item.author?.roles?.includes('admin');
+
+                        return (
+                            <article className={clsx('rounded-3xl border p-5', isAdminAuthor ? 'border-[rgba(127,244,228,0.18)] bg-[rgba(0,169,158,0.08)]' : 'border-white/10 bg-slate-950/25')} key={item.id}>
+                                <div className="flex items-start justify-between gap-4">
+                                    <div>
+                                        <p className="font-semibold text-white">{item.author?.name}</p>
+                                        <p className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-400">{isAdminAuthor ? 'Admin' : 'Employee'}</p>
+                                    </div>
+                                    <p className="text-xs uppercase tracking-[0.18em] text-slate-400">{item.created_at ? dayjs(item.created_at).format('DD MMM YYYY, hh:mm A') : ''}</p>
+                                </div>
+                                <p className="mt-3 whitespace-pre-wrap text-sm text-slate-200">{item.message}</p>
+                            </article>
+                        );
+                    }) : null}
+                    {!loading && !feedback.length ? (
+                        <div className="rounded-3xl border border-dashed border-white/12 bg-slate-950/20 p-6 text-slate-300">
+                            No feedback yet. Start the conversation here.
+                        </div>
+                    ) : null}
+                </div>
+
+                <form className="space-y-3" onSubmit={submit}>
+                    <textarea
+                        className="field min-h-32 resize-y"
+                        placeholder="Write your feedback or reply"
+                        value={message}
+                        onChange={(event) => setMessage(event.target.value)}
+                    />
+                    {error ? <p className="rounded-2xl bg-rose-500/15 px-4 py-3 text-sm text-rose-200">{error}</p> : null}
+                    <div className="flex justify-end">
+                        <button className="btn btn-primary" disabled={submitting || !message.trim()} type="submit">
+                            {submitting ? 'Sending...' : 'Send feedback'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </Modal>
     );
 }
 
@@ -1154,12 +1899,134 @@ function singularize(value) {
     return value.endsWith('s') ? value.slice(0, -1) : value;
 }
 
-function flattenRows(rows, nestedKey) {
-    return rows.flatMap((row) => row[nestedKey].map((nested) => ({
-        employee: row.employee,
-        employee_code: row.employee_code,
-        project: nested.project,
-        engagement_type: nested.engagement_type,
-        percentage: nested.percentage,
-    })));
+function formatPercentage(value) {
+    const numericValue = Number(value);
+
+    if (Number.isNaN(numericValue)) {
+        return value === null || value === undefined || value === '' ? '' : `${value}%`;
+    }
+
+    return `${numericValue % 1 === 0 ? numericValue.toFixed(0) : numericValue.toFixed(2)}%`;
 }
+
+function formatDisplayValue(header, value) {
+    if (value === null || value === undefined || value === '') {
+        return '';
+    }
+
+    if (header.includes('percentage') || header === 'variance') {
+        return formatPercentage(value);
+    }
+
+    return String(value);
+}
+
+function humanizeKey(value) {
+    return String(value)
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, (match) => match.toUpperCase());
+}
+
+const selectStyles = {
+    control: (base, state) => ({
+        ...base,
+        minHeight: 42,
+        backgroundColor: 'rgba(2, 16, 20, 0.62)',
+        borderColor: state.isFocused ? 'rgba(127, 244, 228, 0.55)' : 'rgba(0, 169, 158, 0.18)',
+        boxShadow: state.isFocused ? '0 0 0 3px rgba(0, 169, 158, 0.18)' : 'none',
+        borderRadius: 16,
+        padding: '2px 4px',
+        '&:hover': {
+            borderColor: 'rgba(127, 244, 228, 0.55)',
+        },
+    }),
+    menu: (base) => ({
+        ...base,
+        backgroundColor: '#092126',
+        border: '1px solid rgba(127, 244, 228, 0.16)',
+        borderRadius: 16,
+        overflow: 'hidden',
+    }),
+    menuList: (base) => ({
+        ...base,
+        padding: 6,
+    }),
+    option: (base, state) => ({
+        ...base,
+        backgroundColor: state.isSelected
+            ? 'rgba(0, 169, 158, 0.28)'
+            : state.isFocused
+                ? 'rgba(127, 244, 228, 0.12)'
+                : 'transparent',
+        color: '#f3fffd',
+        borderRadius: 10,
+        cursor: 'pointer',
+    }),
+    placeholder: (base) => ({
+        ...base,
+        color: '#94a3b8',
+    }),
+    singleValue: (base) => ({
+        ...base,
+        color: '#f3fffd',
+    }),
+    input: (base) => ({
+        ...base,
+        color: '#f3fffd',
+    }),
+    multiValue: (base) => ({
+        ...base,
+        backgroundColor: 'rgba(0, 169, 158, 0.16)',
+        borderRadius: 999,
+    }),
+    multiValueLabel: (base) => ({
+        ...base,
+        color: '#d7fff9',
+        fontSize: '0.8rem',
+        padding: '4px 8px',
+    }),
+    multiValueRemove: (base) => ({
+        ...base,
+        color: '#d7fff9',
+        borderRadius: 999,
+        ':hover': {
+            backgroundColor: 'rgba(127, 244, 228, 0.18)',
+            color: '#ffffff',
+        },
+    }),
+    dropdownIndicator: (base, state) => ({
+        ...base,
+        color: state.isFocused ? '#7ff4e4' : '#94a3b8',
+        ':hover': {
+            color: '#7ff4e4',
+        },
+    }),
+    clearIndicator: (base) => ({
+        ...base,
+        color: '#94a3b8',
+        ':hover': {
+            color: '#7ff4e4',
+        },
+    }),
+    indicatorSeparator: (base) => ({
+        ...base,
+        backgroundColor: 'rgba(127, 244, 228, 0.12)',
+    }),
+};
+
+const monthOptions = [
+    { value: 1, label: 'January' },
+    { value: 2, label: 'February' },
+    { value: 3, label: 'March' },
+    { value: 4, label: 'April' },
+    { value: 5, label: 'May' },
+    { value: 6, label: 'June' },
+    { value: 7, label: 'July' },
+    { value: 8, label: 'August' },
+    { value: 9, label: 'September' },
+    { value: 10, label: 'October' },
+    { value: 11, label: 'November' },
+    { value: 12, label: 'December' },
+];
+
+const yearOptions = Array.from({ length: 81 }, (_, index) => 2020 + index);

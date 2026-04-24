@@ -6,6 +6,7 @@ use App\Models\Allocation;
 use App\Models\LoeEntry;
 use App\Models\LoeReport;
 use App\Models\Project;
+use App\Notifications\LoeFeedbackNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Tests\Concerns\InteractsWithRoles;
@@ -100,6 +101,10 @@ class EmployeeApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('total_percentage', '90.00');
 
+        $this->deleteJson("/api/employee/reports/{$reportId}")
+            ->assertOk()
+            ->assertJsonPath('message', 'LOE deleted successfully.');
+
         $this->get('/api/employee/reports/export?format=pdf')
             ->assertOk()
             ->assertHeader('content-type', 'application/pdf');
@@ -152,6 +157,28 @@ class EmployeeApiTest extends TestCase
             ->assertSeeText('LOE has already been submitted for this month.');
     }
 
+    public function test_employee_can_create_loe_for_a_past_month_if_it_has_not_been_submitted_yet(): void
+    {
+        Notification::fake();
+
+        $employee = $this->createUserWithRoles(['employee'], ['timezone' => 'Asia/Karachi']);
+        $project = Project::factory()->create(['status' => true]);
+
+        $this->actingAs($employee);
+
+        $this->postJson('/api/employee/reports', [
+            'month' => 1,
+            'year' => 2020,
+            'entries' => [
+                ['project_id' => $project->id, 'percentage' => 50],
+            ],
+        ])
+            ->assertCreated()
+            ->assertJsonPath('month', 1)
+            ->assertJsonPath('year', 2020)
+            ->assertJsonPath('total_percentage', '50.00');
+    }
+
     public function test_employee_cannot_view_another_employees_report(): void
     {
         $employee = $this->createUserWithRoles(['employee']);
@@ -196,5 +223,66 @@ class EmployeeApiTest extends TestCase
         ])
             ->assertStatus(422)
             ->assertSeeText('This LOE is now read-only.');
+
+        $this->deleteJson("/api/employee/reports/{$report->id}")
+            ->assertOk()
+            ->assertJsonPath('message', 'LOE deleted successfully.');
+    }
+
+    public function test_employee_can_view_feedback_and_reply_to_admin_feedback(): void
+    {
+        Notification::fake();
+
+        $employee = $this->createUserWithRoles(['employee']);
+        $admin = $this->createUserWithRoles(['admin']);
+        $project = Project::factory()->create(['status' => true]);
+        $report = LoeReport::factory()->create([
+            'user_id' => $employee->id,
+            'month' => 12,
+            'year' => 2099,
+            'total_percentage' => 75,
+        ]);
+        LoeEntry::factory()->create([
+            'loe_report_id' => $report->id,
+            'project_id' => $project->id,
+            'percentage' => 75,
+        ]);
+
+        $this->actingAs($admin);
+        $this->postJson("/api/loe-reports/{$report->id}/feedback", [
+            'message' => 'Can you share more detail on this distribution?',
+        ])->assertCreated();
+
+        $this->actingAs($employee);
+
+        $this->getJson("/api/loe-reports/{$report->id}/feedback")
+            ->assertOk()
+            ->assertJsonCount(1, 'feedback')
+            ->assertJsonPath('feedback.0.author.id', $admin->id);
+
+        $this->postJson("/api/loe-reports/{$report->id}/feedback", [
+            'message' => 'I was supporting two internal streams during the month.',
+        ])
+            ->assertCreated()
+            ->assertJsonPath('author.id', $employee->id);
+
+        Notification::assertSentTo($admin, LoeFeedbackNotification::class);
+    }
+
+    public function test_employee_cannot_access_feedback_for_another_employees_report(): void
+    {
+        $employee = $this->createUserWithRoles(['employee']);
+        $otherEmployee = $this->createUserWithRoles(['employee']);
+        $report = LoeReport::factory()->create([
+            'user_id' => $otherEmployee->id,
+            'month' => 12,
+            'year' => 2099,
+            'total_percentage' => 65,
+        ]);
+
+        $this->actingAs($employee);
+
+        $this->getJson("/api/loe-reports/{$report->id}/feedback")
+            ->assertForbidden();
     }
 }

@@ -7,13 +7,41 @@ use App\Http\Requests\Admin\StoreAllocationRequest;
 use App\Http\Requests\Admin\UpdateAllocationRequest;
 use App\Models\Allocation;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class AllocationController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
+        $search = trim((string) $request->string('search')->value());
+        $projectIds = collect($request->input('project_ids', []))
+            ->filter()
+            ->values()
+            ->all();
+
         return response()->json(
-            Allocation::query()->with(['user', 'project'])->orderByDesc('created_at')->get()
+            Allocation::query()
+                ->with(['user', 'project'])
+                ->when($search !== '', function ($query) use ($search) {
+                    $query->where(function ($innerQuery) use ($search) {
+                        $innerQuery
+                            ->where('id', 'like', "%{$search}%")
+                            ->orWhereHas('user', function ($userQuery) use ($search) {
+                                $userQuery
+                                    ->where('name', 'like', "%{$search}%")
+                                    ->orWhere('email', 'like', "%{$search}%")
+                                    ->orWhere('employee_code', 'like', "%{$search}%");
+                            })
+                            ->orWhereHas('project', function ($projectQuery) use ($search) {
+                                $projectQuery
+                                    ->where('id', 'like', "%{$search}%")
+                                    ->orWhere('name', 'like', "%{$search}%");
+                            });
+                    });
+                })
+                ->when($projectIds !== [], fn ($query) => $query->whereIn('project_id', $projectIds))
+                ->orderByDesc('created_at')
+                ->get()
         );
     }
 

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Enums\UserStream;
 use App\Models\Concerns\LogsModelActivity;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -49,6 +50,10 @@ class User extends Authenticatable
         'remember_token',
     ];
 
+    protected $appends = [
+        'stream_label',
+    ];
+
     /**
      * Get the attributes that should be cast.
      *
@@ -78,8 +83,18 @@ class User extends Authenticatable
         return $this->hasMany(LoeReport::class);
     }
 
+    public function loeFeedback(): HasMany
+    {
+        return $this->hasMany(LoeFeedback::class);
+    }
+
     public function hasRole(string $role): bool
     {
         return $this->roles->contains('name', $role);
+    }
+
+    public function getStreamLabelAttribute(): ?string
+    {
+        return $this->stream ? UserStream::from($this->stream)->label() : null;
     }
 }
