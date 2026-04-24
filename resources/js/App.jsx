@@ -1,6 +1,21 @@
 import axios from 'axios';
 import dayjs from 'dayjs';
 import clsx from 'clsx';
+import {
+    ArrowDownTrayIcon,
+    ArrowRightOnRectangleIcon,
+    BellIcon,
+    ChartBarIcon,
+    ChatBubbleLeftRightIcon,
+    ClipboardDocumentListIcon,
+    ClockIcon,
+    FolderIcon,
+    PencilSquareIcon,
+    PlusIcon,
+    Squares2X2Icon,
+    TrashIcon,
+    UsersIcon,
+} from '@heroicons/react/24/outline';
 import { useEffect, useMemo, useState } from 'react';
 import Select from 'react-select';
 import { Navigate, Route, Routes, Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -19,18 +34,18 @@ import {
 } from 'recharts';
 
 const adminNav = [
-    { to: '/admin/dashboard', label: 'Dashboard' },
-    { to: '/admin/users', label: 'Users' },
-    { to: '/admin/projects', label: 'Projects' },
-    { to: '/admin/allocations', label: 'Allocations' },
-    { to: '/admin/reports', label: 'Reports' },
-    { to: '/admin/notifications', label: 'Notifications' },
-    { to: '/admin/activity-logs', label: 'Activity Logs' },
+    { to: '/admin/dashboard', label: 'Dashboard', icon: Squares2X2Icon },
+    { to: '/admin/users', label: 'Users', icon: UsersIcon },
+    { to: '/admin/projects', label: 'Projects', icon: FolderIcon },
+    { to: '/admin/allocations', label: 'Allocations', icon: ClipboardDocumentListIcon },
+    { to: '/admin/reports', label: 'Reports', icon: ChartBarIcon },
+    { to: '/admin/notifications', label: 'Notifications', icon: BellIcon },
+    { to: '/admin/activity-logs', label: 'Activity Logs', icon: ClockIcon },
 ];
 
 const employeeNav = [
-    { to: '/app/dashboard', label: 'My LOE' },
-    { to: '/app/notifications', label: 'Notifications' },
+    { to: '/app/dashboard', label: 'My LOE', icon: ClipboardDocumentListIcon },
+    { to: '/app/notifications', label: 'Notifications', icon: BellIcon },
 ];
 
 export default function App() {
@@ -353,7 +368,10 @@ function Shell({ title, user, navItems, setUser, children }) {
                                 key={item.to}
                                 to={item.to}
                             >
-                                <span>{item.label}</span>
+                                <span className="flex items-center gap-3">
+                                    {item.icon ? <item.icon className="h-4 w-4" /> : null}
+                                    <span>{item.label}</span>
+                                </span>
                                 {item.label === 'Notifications' && unreadCount > 0 ? (
                                     <span className="rounded-full brand-badge px-2 py-0.5 text-xs">
                                         {unreadCount}
@@ -362,7 +380,10 @@ function Shell({ title, user, navItems, setUser, children }) {
                             </Link>
                         ))}
                     </nav>
-                    <button className="btn btn-secondary mt-10 w-full" onClick={logout} type="button">Logout</button>
+                    <button className="btn btn-secondary mt-10 flex w-full items-center gap-2" onClick={logout} type="button">
+                        <ArrowRightOnRectangleIcon className="h-4 w-4" />
+                        <span>Logout</span>
+                    </button>
                 </aside>
                 <main className="space-y-6">{children}</main>
             </div>
@@ -381,6 +402,8 @@ function EmployeeDashboardPage({ user }) {
     const [modalMode, setModalMode] = useState('create');
     const [editingReportId, setEditingReportId] = useState(null);
     const [feedbackReport, setFeedbackReport] = useState(null);
+    const [saveIntent, setSaveIntent] = useState('submitted');
+    const [deleteReportTarget, setDeleteReportTarget] = useState(null);
 
     const load = async () => {
         const response = await axios.get('/api/employee/dashboard');
@@ -397,15 +420,29 @@ function EmployeeDashboardPage({ user }) {
     const isEditing = modalMode === 'edit';
     const isLocked = isEditing ? (editingReport?.is_locked ?? false) : false;
     const totalPercentage = form.entries.reduce((sum, entry) => sum + (Number(entry.percentage) || 0), 0).toFixed(2);
+    const allocationTotal = Number(data?.allocations?.reduce((sum, allocation) => sum + Number(allocation.percentage || 0), 0) ?? 0);
+    const liveWarnings = getLoeWarnings(Number(totalPercentage), allocationTotal);
+
+    const buildPrefillEntries = () => {
+        if (data?.prefill_entries?.length) {
+            return data.prefill_entries.map((entry) => ({
+                project_id: entry.project_id,
+                percentage: entry.percentage,
+            }));
+        }
+
+        return [{ project_id: '', percentage: '' }];
+    };
 
     const openCreateModal = () => {
         setMessage('');
         setModalMode('create');
         setEditingReportId(null);
+        setSaveIntent('submitted');
         setForm({
             month: data?.current_period.month ?? now.month() + 1,
             year: data?.current_period.year ?? now.year(),
-            entries: [{ project_id: '', percentage: '' }],
+            entries: buildPrefillEntries(),
         });
         setIsModalOpen(true);
     };
@@ -414,6 +451,7 @@ function EmployeeDashboardPage({ user }) {
         setMessage('');
         setModalMode('edit');
         setEditingReportId(report.id);
+        setSaveIntent(report.status ?? 'submitted');
         setForm({
             month: report.month,
             year: report.year,
@@ -429,7 +467,26 @@ function EmployeeDashboardPage({ user }) {
             setIsModalOpen(false);
             setModalMode('create');
             setEditingReportId(null);
+            setSaveIntent('submitted');
         }
+    };
+
+    const copyPreviousMonth = () => {
+        const sourceReport = data?.reports.find((report) => report.id !== editingReportId);
+
+        if (!sourceReport) {
+            setMessage('No previous LOE found to copy.');
+            return;
+        }
+
+        setForm((current) => ({
+            ...current,
+            entries: sourceReport.entries.map((entry) => ({
+                project_id: entry.project_id,
+                percentage: entry.percentage,
+            })),
+        }));
+        setMessage(`Copied entries from ${dayjs(`${sourceReport.year}-${String(sourceReport.month).padStart(2, '0')}-01`).format('MMMM YYYY')}.`);
     };
 
     const updateEntry = (index, key, value) => {
@@ -439,8 +496,9 @@ function EmployeeDashboardPage({ user }) {
         }));
     };
 
-    const submit = async (event) => {
+    const submit = async (event, nextStatus = saveIntent) => {
         event.preventDefault();
+        setSaveIntent(nextStatus);
         setSaving(true);
         setMessage('');
 
@@ -448,6 +506,7 @@ function EmployeeDashboardPage({ user }) {
             const payload = {
                 month: Number(form.month),
                 year: Number(form.year),
+                status: nextStatus,
                 entries: form.entries.map((entry) => ({
                     project_id: entry.project_id,
                     percentage: Number(entry.percentage),
@@ -455,11 +514,11 @@ function EmployeeDashboardPage({ user }) {
             };
 
             if (isEditing && editingReport) {
-                await axios.put(`/api/employee/reports/${editingReport.id}`, { entries: payload.entries });
-                setMessage('LOE updated successfully.');
+                await axios.put(`/api/employee/reports/${editingReport.id}`, { status: payload.status, entries: payload.entries });
+                setMessage(nextStatus === 'draft' ? 'Draft updated successfully.' : 'LOE updated successfully.');
             } else {
                 await axios.post('/api/employee/reports', payload);
-                setMessage('LOE submitted successfully.');
+                setMessage(nextStatus === 'draft' ? 'Draft saved successfully.' : 'LOE submitted successfully.');
             }
 
             await load();
@@ -471,28 +530,23 @@ function EmployeeDashboardPage({ user }) {
         }
     };
 
-    const deleteReport = async (report) => {
-        const confirmed = window.confirm(`Delete the LOE report for ${dayjs(`${report.year}-${report.month}-01`).format('MMMM YYYY')}?`);
+    const requestDeleteReport = (report) => {
+        setDeleteReportTarget(report);
+    };
 
-        if (!confirmed) {
+    const confirmDeleteReport = async () => {
+        if (!deleteReportTarget) {
             return;
         }
 
-        if (report.is_locked) {
-            const lockedConfirmed = window.confirm('This LOE is from a closed period. Please confirm again to permanently delete it.');
-
-            if (!lockedConfirmed) {
-                return;
-            }
-        }
-
-        setDeletingReportId(report.id);
+        setDeletingReportId(deleteReportTarget.id);
         setMessage('');
 
         try {
-            await axios.delete(`/api/employee/reports/${report.id}`);
+            await axios.delete(`/api/employee/reports/${deleteReportTarget.id}`);
             setMessage('LOE deleted successfully.');
             await load();
+            setDeleteReportTarget(null);
         } catch (error) {
             setMessage(error.response?.data?.message ?? 'Unable to delete LOE.');
         } finally {
@@ -510,11 +564,20 @@ function EmployeeDashboardPage({ user }) {
                         <p className="text-sm uppercase tracking-[0.3em] brand-kicker">Monthly effort</p>
                         <h2 className="mt-3 text-3xl font-semibold text-white">Submit or review your LOE</h2>
                         <p className="mt-2 text-slate-300">Deadline for your current month is {dayjs(data.current_period.deadline).format('DD MMM YYYY, hh:mm A')} ({user.timezone}).</p>
+                        <DeadlineCountdown deadline={data.current_period.deadline} />
+                        <div className="mt-4 flex flex-wrap items-center gap-3">
+                            <span className={clsx('rounded-full px-3 py-1 text-xs uppercase tracking-[0.18em]', statusBadgeClass(data.current_period.status))}>
+                                {humanizeStatus(data.current_period.status)}
+                            </span>
+                            <span className="text-sm text-slate-300">
+                                {data.current_period.status === 'overdue' ? 'The current month still needs your attention.' : 'The current month workflow is on track.'}
+                            </span>
+                        </div>
                     </div>
                     <div className="flex flex-wrap gap-3">
-                        <button className="btn btn-primary" onClick={openCreateModal} type="button">Add LOE</button>
-                        <a className="btn btn-secondary" href="/api/employee/reports/export?format=pdf">Export PDF</a>
-                        <a className="btn btn-secondary" href="/api/employee/reports/export?format=xlsx">Export Excel</a>
+                        <button className="btn btn-primary flex items-center gap-2" onClick={openCreateModal} type="button"><PlusIcon className="h-4 w-4" /> <span>Add LOE</span></button>
+                        <a className="btn btn-secondary flex items-center gap-2" href="/api/employee/reports/export?format=pdf"><ArrowDownTrayIcon className="h-4 w-4" /> <span>Export PDF</span></a>
+                        <a className="btn btn-secondary flex items-center gap-2" href="/api/employee/reports/export?format=xlsx"><ArrowDownTrayIcon className="h-4 w-4" /> <span>Export Excel</span></a>
                     </div>
                 </div>
                 {message ? <p className="mt-5 rounded-2xl bg-white/8 px-4 py-3 text-sm text-slate-200">{message}</p> : null}
@@ -533,13 +596,20 @@ function EmployeeDashboardPage({ user }) {
                                 <div>
                                     <p className="text-sm uppercase tracking-[0.2em] text-slate-400">{dayjs(`${data.current_report.year}-${data.current_report.month}-01`).format('MMMM YYYY')}</p>
                                     <p className="mt-3 text-3xl font-semibold text-white">{formatPercentage(data.current_report.total_percentage)}</p>
+                                    <div className="mt-3 flex flex-wrap items-center gap-3">
+                                        <span className={clsx('rounded-full px-3 py-1 text-xs uppercase tracking-[0.18em]', statusBadgeClass(data.current_report.status))}>
+                                            {humanizeStatus(data.current_report.status)}
+                                        </span>
+                                        {data.current_report.reviewed_at ? <span className="text-sm text-slate-300">Reviewed {dayjs(data.current_report.reviewed_at).format('DD MMM YYYY, hh:mm A')}</span> : null}
+                                    </div>
                                 </div>
                                 <div className="flex gap-3">
-                                    <button className="btn btn-secondary py-2" onClick={() => setFeedbackReport(data.current_report)} type="button">Feedback</button>
+                                    <button className="btn btn-secondary flex items-center gap-2 py-2" onClick={() => setFeedbackReport(data.current_report)} type="button"><ChatBubbleLeftRightIcon className="h-4 w-4" /> <span>Feedback</span></button>
                                     {!data.current_report.is_locked ? (
-                                        <button className="btn btn-secondary py-2" onClick={() => openEditModal(data.current_report)} type="button">Edit</button>
+                                        <button className="btn btn-secondary flex items-center gap-2 py-2" onClick={() => openEditModal(data.current_report)} type="button"><PencilSquareIcon className="h-4 w-4" /> <span>Edit</span></button>
                                     ) : null}
-                                    <button className="btn btn-danger py-2" disabled={deletingReportId === data.current_report.id} onClick={() => deleteReport(data.current_report)} type="button">
+                                    <button className="btn btn-danger flex items-center gap-2 py-2" disabled={deletingReportId === data.current_report.id} onClick={() => requestDeleteReport(data.current_report)} type="button">
+                                        <TrashIcon className="h-4 w-4" />
                                         {deletingReportId === data.current_report.id ? 'Deleting...' : 'Delete'}
                                     </button>
                                 </div>
@@ -552,6 +622,20 @@ function EmployeeDashboardPage({ user }) {
                                     </li>
                                 ))}
                             </ul>
+                            {data.current_report.review_notes ? (
+                                <div className="mt-4 rounded-2xl bg-white/6 px-4 py-3 text-sm text-slate-200">
+                                    Review note: {data.current_report.review_notes}
+                                </div>
+                            ) : null}
+                            {data.current_report.warnings?.length ? (
+                                <div className="mt-4 space-y-2">
+                                    {data.current_report.warnings.map((warning, index) => (
+                                        <p className={clsx('rounded-2xl px-4 py-3 text-sm', warning.level === 'critical' ? 'bg-rose-500/15 text-rose-200' : 'bg-amber-500/15 text-amber-100')} key={index}>
+                                            {warning.message}
+                                        </p>
+                                    ))}
+                                </div>
+                            ) : null}
                         </article>
                     ) : (
                         <div className="mt-6 rounded-3xl border border-dashed border-white/12 bg-slate-950/20 p-6 text-slate-300">
@@ -599,6 +683,11 @@ function EmployeeDashboardPage({ user }) {
                                                 <td className="py-4 pr-4" rowSpan={report.entries.length}>
                                                     <div>
                                                         <p className="font-semibold text-white">{dayjs(`${report.year}-${report.month}-01`).format('MMMM YYYY')}</p>
+                                                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                                                            <span className={clsx('rounded-full px-3 py-1 text-xs uppercase tracking-[0.18em]', statusBadgeClass(report.status))}>
+                                                                {humanizeStatus(report.status)}
+                                                            </span>
+                                                        </div>
                                                     </div>
                                                 </td>
                                                 <td className="py-4 pr-4" rowSpan={report.entries.length}>
@@ -611,11 +700,12 @@ function EmployeeDashboardPage({ user }) {
                                         {entryIndex === 0 ? (
                                             <td className="py-4" rowSpan={report.entries.length}>
                                                 <div className="flex gap-2">
-                                                    <button className="btn btn-secondary py-2" onClick={() => setFeedbackReport(report)} type="button">Feedback</button>
+                                                    <button className="btn btn-secondary flex items-center gap-2 py-2" onClick={() => setFeedbackReport(report)} type="button"><ChatBubbleLeftRightIcon className="h-4 w-4" /> <span>Feedback</span></button>
                                                     {!report.is_locked ? (
-                                                        <button className="btn btn-secondary py-2" onClick={() => openEditModal(report)} type="button">Edit</button>
+                                                        <button className="btn btn-secondary flex items-center gap-2 py-2" onClick={() => openEditModal(report)} type="button"><PencilSquareIcon className="h-4 w-4" /> <span>Edit</span></button>
                                                     ) : null}
-                                                    <button className="btn btn-danger py-2" disabled={deletingReportId === report.id} onClick={() => deleteReport(report)} type="button">
+                                                    <button className="btn btn-danger flex items-center gap-2 py-2" disabled={deletingReportId === report.id} onClick={() => requestDeleteReport(report)} type="button">
+                                                        <TrashIcon className="h-4 w-4" />
                                                         {deletingReportId === report.id ? 'Deleting...' : 'Delete'}
                                                     </button>
                                                 </div>
@@ -639,7 +729,7 @@ function EmployeeDashboardPage({ user }) {
                 title={isEditing ? `Edit LOE for ${dayjs(`${form.year}-${form.month}-01`).format('MMMM YYYY')}` : 'Add Monthly LOE'}
                 onClose={closeModal}
             >
-                <form className="space-y-4" onSubmit={submit}>
+                <form className="space-y-4" onSubmit={(event) => submit(event, saveIntent)}>
                     <div className="grid gap-4 md:grid-cols-2">
                         <select
                             className="field"
@@ -679,11 +769,28 @@ function EmployeeDashboardPage({ user }) {
                     ))}
 
                     <div className="flex flex-wrap gap-3">
+                        {!isEditing ? (
+                            <button className="btn btn-secondary" disabled={isLocked} onClick={() => {
+                                setForm((current) => ({ ...current, entries: buildPrefillEntries() }));
+                                setMessage('Prefilled entries from current allocations.');
+                            }} type="button">Use Allocations</button>
+                        ) : null}
+                        <button className="btn btn-secondary" disabled={isLocked} onClick={copyPreviousMonth} type="button">Copy Last Month</button>
                         <button className="btn btn-secondary" disabled={isLocked} onClick={() => setForm({ ...form, entries: [...form.entries, { project_id: '', percentage: '' }] })} type="button">Add project</button>
-                        <button className="btn btn-primary" disabled={saving || isLocked} type="submit">{saving ? 'Saving...' : isEditing ? 'Update LOE' : 'Submit LOE'}</button>
+                        <button className="btn btn-secondary" disabled={saving || isLocked} onClick={(event) => submit(event, 'draft')} type="button">{saving && saveIntent === 'draft' ? 'Saving...' : 'Save Draft'}</button>
+                        <button className="btn btn-primary" disabled={saving || isLocked} onClick={(event) => submit(event, 'submitted')} type="button">{saving && saveIntent === 'submitted' ? 'Saving...' : isEditing ? 'Submit Update' : 'Submit LOE'}</button>
                     </div>
 
                     <p className="text-sm text-slate-300">Total percentage: {formatPercentage(totalPercentage)}</p>
+                    {liveWarnings.length ? (
+                        <div className="space-y-2">
+                            {liveWarnings.map((warning, index) => (
+                                <p className={clsx('rounded-2xl px-4 py-3 text-sm', warning.level === 'critical' ? 'bg-rose-500/15 text-rose-200' : 'bg-amber-500/15 text-amber-100')} key={index}>
+                                    {warning.message}
+                                </p>
+                            ))}
+                        </div>
+                    ) : null}
                     {isLocked ? <p className="rounded-2xl brand-badge-soft px-4 py-3 text-sm">This report is read-only because the selected month has already closed.</p> : null}
                     {message && isModalOpen ? <p className="rounded-2xl bg-white/8 px-4 py-3 text-sm text-slate-200">{message}</p> : null}
                 </form>
@@ -696,6 +803,27 @@ function EmployeeDashboardPage({ user }) {
                 onClose={() => setFeedbackReport(null)}
                 onPosted={load}
             />
+
+            <Modal isOpen={Boolean(deleteReportTarget)} title="Delete LOE" onClose={() => setDeleteReportTarget(null)}>
+                {deleteReportTarget ? (
+                    <div className="space-y-4">
+                        <p className="text-slate-200">
+                            Delete the LOE report for {dayjs(`${deleteReportTarget.year}-${String(deleteReportTarget.month).padStart(2, '0')}-01`).format('MMMM YYYY')}?
+                        </p>
+                        {deleteReportTarget.is_locked ? (
+                            <p className="rounded-2xl bg-rose-500/15 px-4 py-3 text-sm text-rose-200">
+                                This LOE is from a closed period and will be permanently removed.
+                            </p>
+                        ) : null}
+                        <div className="flex justify-end gap-3">
+                            <button className="btn btn-secondary" onClick={() => setDeleteReportTarget(null)} type="button">Cancel</button>
+                            <button className="btn btn-danger" disabled={deletingReportId === deleteReportTarget.id} onClick={confirmDeleteReport} type="button">
+                                {deletingReportId === deleteReportTarget.id ? 'Deleting...' : 'Delete LOE'}
+                            </button>
+                        </div>
+                    </div>
+                ) : null}
+            </Modal>
         </div>
     );
 }
@@ -732,6 +860,44 @@ function AdminDashboardPage() {
                     </BarChart>
                 </ResponsiveContainer>
             </ChartCard>
+            <section className="glass-panel rounded-[2rem] p-8">
+                <div className="flex items-start justify-between gap-4">
+                    <div>
+                        <h3 className="text-xl font-semibold text-white">Exceptions Needing Attention</h3>
+                        <p className="mt-2 text-slate-300">Low totals, missing submissions, drafts, and pending reviews surface here first.</p>
+                    </div>
+                    <span className="rounded-full brand-badge px-3 py-1 text-xs uppercase tracking-[0.18em]">{data.exceptions.length} items</span>
+                </div>
+                <div className="mt-6 space-y-3">
+                    {data.exceptions.length ? data.exceptions.map((item, index) => (
+                        <div className="rounded-2xl border border-white/10 bg-slate-950/25 p-4" key={`${item.type}-${item.employee_code}-${index}`}>
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                    <div className="flex flex-wrap items-center gap-3">
+                                        <p className="font-semibold text-white">{item.employee}</p>
+                                        <span className={clsx('rounded-full px-3 py-1 text-xs uppercase tracking-[0.18em]', item.severity === 'critical' ? 'bg-rose-500/15 text-rose-200' : 'bg-amber-500/15 text-amber-100')}>
+                                            {item.severity}
+                                        </span>
+                                    </div>
+                                    <p className="mt-2 text-sm text-slate-300">{item.message}</p>
+                                </div>
+                                <div className="flex flex-col items-end gap-3">
+                                    <p className="text-sm text-slate-400">{item.employee_code}</p>
+                                    {item.user_id ? (
+                                        <Link className="brand-link text-sm" to={`/admin/users/${item.user_id}/loe-reports`}>
+                                            Review LOE
+                                        </Link>
+                                    ) : null}
+                                </div>
+                            </div>
+                        </div>
+                    )) : (
+                        <div className="rounded-3xl border border-dashed border-white/12 bg-slate-950/20 p-6 text-slate-300">
+                            No exceptions found for the selected month.
+                        </div>
+                    )}
+                </div>
+            </section>
         </div>
     );
 }
@@ -771,6 +937,9 @@ function AdminUserLoeReportsPage() {
     const navigate = useNavigate();
     const [data, setData] = useState(null);
     const [feedbackReport, setFeedbackReport] = useState(null);
+    const [reviewingReportId, setReviewingReportId] = useState(null);
+    const [reviewTarget, setReviewTarget] = useState(null);
+    const [reviewNotes, setReviewNotes] = useState('');
 
     const load = async () => {
         const response = await axios.get(`/api/admin/users/${userId}/loe-reports`);
@@ -829,6 +998,20 @@ function AdminUserLoeReportsPage() {
                                                 <>
                                                     <td className="py-4 pr-4" rowSpan={report.entries.length}>
                                                         <p className="font-semibold text-white">{dayjs(`${report.year}-${String(report.month).padStart(2, '0')}-01`).format('MMMM YYYY')}</p>
+                                                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                                                            <span className={clsx('rounded-full px-3 py-1 text-xs uppercase tracking-[0.18em]', statusBadgeClass(report.status))}>
+                                                                {humanizeStatus(report.status)}
+                                                            </span>
+                                                        </div>
+                                                        {report.warnings?.length ? (
+                                                            <div className="mt-3 space-y-2">
+                                                                {report.warnings.map((warning, warningIndex) => (
+                                                                    <p className={clsx('rounded-2xl px-3 py-2 text-xs', warning.level === 'critical' ? 'bg-rose-500/15 text-rose-200' : 'bg-amber-500/15 text-amber-100')} key={warningIndex}>
+                                                                        {warning.message}
+                                                                    </p>
+                                                                ))}
+                                                            </div>
+                                                        ) : null}
                                                     </td>
                                                     <td className="py-4 pr-4" rowSpan={report.entries.length}>
                                                         <span className="font-semibold text-white">{formatPercentage(report.total_percentage)}</span>
@@ -841,11 +1024,27 @@ function AdminUserLoeReportsPage() {
                                             {entryIndex === 0 ? (
                                                 <td className="py-4 pr-4" rowSpan={report.entries.length}>
                                                     {report.submitted_at ? dayjs(report.submitted_at).format('DD MMM YYYY, hh:mm A') : ''}
+                                                    {report.review_notes ? <p className="mt-3 text-sm text-slate-300">Note: {report.review_notes}</p> : null}
                                                 </td>
                                             ) : null}
                                             {entryIndex === 0 ? (
                                                 <td className="py-4" rowSpan={report.entries.length}>
-                                                    <button className="btn btn-secondary py-2" onClick={() => setFeedbackReport(report)} type="button">Feedback</button>
+                                                    <div className="flex flex-col gap-2">
+                                                        <button className="btn btn-secondary py-2" onClick={() => setFeedbackReport(report)} type="button">Feedback</button>
+                                                        {report.status !== 'approved' ? (
+                                                            <button
+                                                                className="btn btn-primary py-2"
+                                                                disabled={reviewingReportId === report.id}
+                                                                onClick={() => {
+                                                                    setReviewTarget(report);
+                                                                    setReviewNotes(report.review_notes ?? '');
+                                                                }}
+                                                                type="button"
+                                                            >
+                                                                {reviewingReportId === report.id ? 'Approving...' : 'Approve'}
+                                                            </button>
+                                                        ) : null}
+                                                    </div>
                                                 </td>
                                             ) : null}
                                         </tr>
@@ -868,6 +1067,45 @@ function AdminUserLoeReportsPage() {
                 onClose={() => setFeedbackReport(null)}
                 onPosted={load}
             />
+            <Modal isOpen={Boolean(reviewTarget)} title="Approve LOE" onClose={() => setReviewTarget(null)}>
+                {reviewTarget ? (
+                    <div className="space-y-4">
+                        <p className="text-slate-200">
+                            Approve the LOE for {dayjs(`${reviewTarget.year}-${String(reviewTarget.month).padStart(2, '0')}-01`).format('MMMM YYYY')}?
+                        </p>
+                        <textarea
+                            className="field min-h-28 resize-y"
+                            placeholder="Add an optional review note"
+                            value={reviewNotes}
+                            onChange={(event) => setReviewNotes(event.target.value)}
+                        />
+                        <div className="flex justify-end gap-3">
+                            <button className="btn btn-secondary" onClick={() => setReviewTarget(null)} type="button">Cancel</button>
+                            <button
+                                className="btn btn-primary"
+                                disabled={reviewingReportId === reviewTarget.id}
+                                onClick={async () => {
+                                    setReviewingReportId(reviewTarget.id);
+
+                                    try {
+                                        await axios.patch(`/api/admin/users/${userId}/loe-reports/${reviewTarget.id}/review`, {
+                                            status: 'approved',
+                                            review_notes: reviewNotes,
+                                        });
+                                        await load();
+                                        setReviewTarget(null);
+                                    } finally {
+                                        setReviewingReportId(null);
+                                    }
+                                }}
+                                type="button"
+                            >
+                                {reviewingReportId === reviewTarget.id ? 'Approving...' : 'Approve LOE'}
+                            </button>
+                        </div>
+                    </div>
+                ) : null}
+            </Modal>
         </div>
     );
 }
@@ -1160,13 +1398,15 @@ function AdminReportsPage() {
 
 function AdminActivityLogsPage() {
     const [data, setData] = useState(null);
-    const [filters, setFilters] = useState({ log_name: '', event: '' });
+    const [filters, setFilters] = useState({ module: '', event: '', subject: '', actor: '' });
     const [selectedActivity, setSelectedActivity] = useState(null);
 
     const load = async (nextFilters = filters) => {
         const params = new URLSearchParams();
-        if (nextFilters.log_name) params.set('log_name', nextFilters.log_name);
+        if (nextFilters.module) params.set('log_name', nextFilters.module);
         if (nextFilters.event) params.set('event', nextFilters.event);
+        if (nextFilters.subject) params.set('subject', nextFilters.subject);
+        if (nextFilters.actor) params.set('causer_id', nextFilters.actor);
 
         const response = await axios.get(`/api/admin/activity-logs?${params.toString()}`);
         setData(response.data);
@@ -1179,16 +1419,32 @@ function AdminActivityLogsPage() {
     return (
         <div className="space-y-6">
             <section className="glass-panel rounded-[2rem] p-8">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
-                    <div className="flex-1">
-                        <h2 className="text-2xl font-semibold text-white">Activity logs</h2>
-                        <p className="mt-2 text-slate-300">A running audit trail of changes and notable actions across admin and employee features.</p>
-                    </div>
-                    <div className="grid gap-3 md:grid-cols-2">
-                        <input className="field" placeholder="Filter by log name" value={filters.log_name} onChange={(event) => setFilters({ ...filters, log_name: event.target.value })} />
-                        <input className="field" placeholder="Filter by event" value={filters.event} onChange={(event) => setFilters({ ...filters, event: event.target.value })} />
-                    </div>
+                <h2 className="text-2xl font-semibold text-white">Activity logs</h2>
+                <div className="mt-6 grid gap-3 lg:grid-cols-4">
+                    <select className="field" value={filters.module} onChange={(event) => setFilters({ ...filters, module: event.target.value })}>
+                        <option value="">Filter by module</option>
+                        {activityModuleOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                    <select className="field" value={filters.event} onChange={(event) => setFilters({ ...filters, event: event.target.value })}>
+                        <option value="">Filter by event</option>
+                        {activityEventOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                    <select className="field" value={filters.subject} onChange={(event) => setFilters({ ...filters, subject: event.target.value })}>
+                        <option value="">Filter by subject</option>
+                        {activitySubjectOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                    <select className="field" value={filters.actor} onChange={(event) => setFilters({ ...filters, actor: event.target.value })}>
+                        <option value="">Filter by actor</option>
+                        {(data.filter_options?.actors ?? []).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                </div>
+                <div className="mt-4 mb-2 flex justify-end gap-3">
                     <button className="btn btn-primary" onClick={() => load(filters)} type="button">Apply</button>
+                    <button className="btn btn-secondary" onClick={() => {
+                        const clearedFilters = { module: '', event: '', subject: '', actor: '' };
+                        setFilters(clearedFilters);
+                        load(clearedFilters);
+                    }} type="button">Clear Filters</button>
                 </div>
             </section>
 
@@ -1715,6 +1971,43 @@ function ChartCard({ title, children }) {
     );
 }
 
+function DeadlineCountdown({ deadline }) {
+    const [nowValue, setNowValue] = useState(Date.now());
+
+    useEffect(() => {
+        const timer = window.setInterval(() => setNowValue(Date.now()), 1000);
+
+        return () => window.clearInterval(timer);
+    }, []);
+
+    const remainingMs = Math.max(dayjs(deadline).valueOf() - nowValue, 0);
+    const totalSeconds = Math.floor(remainingMs / 1000);
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    return (
+        <div className="mt-4 flex items-center gap-2 overflow-x-auto pb-1">
+            <span className="inline-flex shrink-0 items-center gap-2 rounded-full brand-badge px-3 py-1.5 text-xs uppercase tracking-[0.18em]">
+                <ClockIcon className="h-4 w-4" />
+                <span>Deadline Countdown</span>
+            </span>
+            {[
+                { label: 'Days', value: days },
+                { label: 'Hours', value: hours },
+                { label: 'Minutes', value: minutes },
+                { label: 'Seconds', value: seconds },
+            ].map((item) => (
+                <div className="shrink-0 rounded-2xl border border-white/10 bg-slate-950/25 px-2.5 py-2 text-center" key={item.label}>
+                    <p className="text-base font-semibold text-white">{String(item.value).padStart(2, '0')}</p>
+                    <p className="text-[0.65rem] uppercase tracking-[0.18em] text-slate-400">{item.label}</p>
+                </div>
+            ))}
+        </div>
+    );
+}
+
 function ReportTable({ title, rows, hiddenHeaders = [], getRowActions = null }) {
     const headers = Object.keys(rows[0] ?? {}).filter((header) => !header.endsWith('_label') && !hiddenHeaders.includes(header));
 
@@ -1899,6 +2192,54 @@ function singularize(value) {
     return value.endsWith('s') ? value.slice(0, -1) : value;
 }
 
+function humanizeStatus(value) {
+    if (!value) {
+        return 'Unknown';
+    }
+
+    return humanizeKey(String(value));
+}
+
+function statusBadgeClass(status) {
+    switch (status) {
+        case 'approved':
+            return 'bg-emerald-500/15 text-emerald-200';
+        case 'submitted':
+            return 'bg-sky-500/15 text-sky-200';
+        case 'draft':
+            return 'bg-amber-500/15 text-amber-100';
+        case 'overdue':
+            return 'bg-rose-500/15 text-rose-200';
+        default:
+            return 'brand-badge-soft';
+    }
+}
+
+function getLoeWarnings(totalPercentage, allocationTotal = 0) {
+    const warnings = [];
+
+    if (totalPercentage < 50 || totalPercentage > 110) {
+        warnings.push({
+            level: 'critical',
+            message: `Total LOE is ${formatPercentage(totalPercentage)}, which is outside the safe 50%-110% range.`,
+        });
+    } else if (totalPercentage < 90) {
+        warnings.push({
+            level: 'medium',
+            message: `Total LOE is ${formatPercentage(totalPercentage)}, which is below the preferred 90%-110% range.`,
+        });
+    }
+
+    if (allocationTotal > 0 && Math.abs(allocationTotal - totalPercentage) >= 20) {
+        warnings.push({
+            level: 'medium',
+            message: `LOE total differs from current allocations by ${formatPercentage(Math.abs(allocationTotal - totalPercentage))}.`,
+        });
+    }
+
+    return warnings;
+}
+
 function formatPercentage(value) {
     const numericValue = Number(value);
 
@@ -2030,3 +2371,32 @@ const monthOptions = [
 ];
 
 const yearOptions = Array.from({ length: 81 }, (_, index) => 2020 + index);
+
+const activityEventOptions = [
+    { value: 'created', label: 'Created' },
+    { value: 'updated', label: 'Updated' },
+    { value: 'deleted', label: 'Deleted' },
+    { value: 'role_synced', label: 'Role Synced' },
+    { value: 'exported', label: 'Exported' },
+];
+
+const activityModuleOptions = [
+    { value: 'users', label: 'Users' },
+    { value: 'projects', label: 'Projects' },
+    { value: 'allocations', label: 'Allocations' },
+    { value: 'loe_reports', label: 'LOE Reports' },
+    { value: 'loe_entries', label: 'LOE Entries' },
+    { value: 'loe_feedback', label: 'LOE Feedback' },
+    { value: 'exports', label: 'Exports' },
+    { value: 'roles', label: 'Roles' },
+];
+
+const activitySubjectOptions = [
+    { value: 'User', label: 'User' },
+    { value: 'Project', label: 'Project' },
+    { value: 'Allocation', label: 'Allocation' },
+    { value: 'LoeReport', label: 'LOE Report' },
+    { value: 'LoeEntry', label: 'LOE Entry' },
+    { value: 'LoeFeedback', label: 'LOE Feedback' },
+    { value: 'Role', label: 'Role' },
+];

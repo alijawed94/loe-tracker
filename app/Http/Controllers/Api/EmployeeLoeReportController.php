@@ -32,6 +32,7 @@ class EmployeeLoeReportController extends Controller
     {
         $user = $request->user();
         $payload = $request->validated();
+        $status = $payload['status'] ?? 'submitted';
 
         abort_if(
             LoeReport::query()->where('user_id', $user->id)->where('month', $payload['month'])->where('year', $payload['year'])->exists(),
@@ -39,21 +40,24 @@ class EmployeeLoeReportController extends Controller
             'LOE has already been submitted for this month.'
         );
 
-        $report = DB::transaction(function () use ($user, $payload) {
+        $report = DB::transaction(function () use ($user, $payload, $status) {
             $report = LoeReport::query()->create([
                 'user_id' => $user->id,
                 'month' => $payload['month'],
                 'year' => $payload['year'],
                 'total_percentage' => collect($payload['entries'])->sum('percentage'),
-                'submitted_at' => now(),
+                'status' => $status,
+                'submitted_at' => $status === 'submitted' ? now() : null,
             ]);
 
             $report->entries()->createMany($payload['entries']);
 
-            return $report->load('entries.project');
+            return $report->load('entries.project', 'reviewer');
         });
 
-        $user->notify(new LoeSubmissionConfirmationNotification($report, true));
+        if ($status === 'submitted') {
+            $user->notify(new LoeSubmissionConfirmationNotification($report, true));
+        }
 
         return response()->json($report, 201);
     }
@@ -71,19 +75,27 @@ class EmployeeLoeReportController extends Controller
         abort_if(LoePeriod::isClosed($employeeLoeReport->month, $employeeLoeReport->year, $request->user()), 422, 'This LOE is now read-only.');
 
         $payload = $request->validated();
+        $status = $payload['status'] ?? $employeeLoeReport->status;
 
-        DB::transaction(function () use ($employeeLoeReport, $payload) {
+        DB::transaction(function () use ($employeeLoeReport, $payload, $status) {
             $employeeLoeReport->update([
                 'total_percentage' => collect($payload['entries'])->sum('percentage'),
-                'submitted_at' => now(),
+                'status' => $status,
+                'submitted_at' => $status === 'submitted' ? now() : null,
+                'reviewed_by' => null,
+                'reviewed_at' => null,
+                'review_notes' => null,
             ]);
 
             $employeeLoeReport->entries()->delete();
             $employeeLoeReport->entries()->createMany($payload['entries']);
         });
 
-        $employeeLoeReport->refresh()->load('entries.project');
-        $request->user()->notify(new LoeSubmissionConfirmationNotification($employeeLoeReport, false));
+        $employeeLoeReport->refresh()->load('entries.project', 'reviewer');
+
+        if ($status === 'submitted') {
+            $request->user()->notify(new LoeSubmissionConfirmationNotification($employeeLoeReport, false));
+        }
 
         return response()->json($employeeLoeReport);
     }

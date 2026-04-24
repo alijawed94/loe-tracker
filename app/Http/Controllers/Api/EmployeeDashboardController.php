@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Project;
+use App\Support\LoeInsights;
 use App\Support\LoePeriod;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -16,12 +17,22 @@ class EmployeeDashboardController extends Controller
             'allocations.project',
             'loeReports.entries.project',
             'loeReports.feedback.user.roles',
+            'loeReports.reviewer',
         ]);
 
         $now = now($user->timezone);
         $currentReport = $user->loeReports->first(
             fn ($report) => $report->month === $now->month && $report->year === $now->year
         );
+        $deadline = LoePeriod::deadline($now->month, $now->year, $user);
+        $currentPeriodStatus = match (true) {
+            $currentReport?->status === 'approved' => 'approved',
+            $currentReport?->status === 'submitted' => 'submitted',
+            $currentReport?->status === 'draft' && $deadline->isPast() => 'overdue',
+            $currentReport?->status === 'draft' => 'draft',
+            $deadline->isPast() => 'overdue',
+            default => 'not_started',
+        };
 
         $reports = $user->loeReports
             ->sortByDesc(fn ($report) => sprintf('%04d-%02d', $report->year, $report->month))
@@ -31,8 +42,13 @@ class EmployeeDashboardController extends Controller
                 'month' => $report->month,
                 'year' => $report->year,
                 'total_percentage' => (float) $report->total_percentage,
+                'status' => $report->status,
                 'submitted_at' => optional($report->submitted_at)?->toIso8601String(),
+                'reviewed_at' => optional($report->reviewed_at)?->toIso8601String(),
+                'review_notes' => $report->review_notes,
+                'reviewer_name' => $report->reviewer?->name,
                 'is_locked' => LoePeriod::isClosed($report->month, $report->year, $user),
+                'warnings' => LoeInsights::reportWarnings($report, $user),
                 'entries' => $report->entries->map(fn ($entry) => [
                     'id' => $entry->id,
                     'project_id' => $entry->project_id,
@@ -55,15 +71,21 @@ class EmployeeDashboardController extends Controller
             'current_period' => [
                 'month' => $now->month,
                 'year' => $now->year,
-                'deadline' => LoePeriod::deadline($now->month, $now->year, $user)->toIso8601String(),
+                'deadline' => $deadline->toIso8601String(),
+                'status' => $currentPeriodStatus,
             ],
             'current_report' => $currentReport ? [
                 'id' => $currentReport->id,
                 'month' => $currentReport->month,
                 'year' => $currentReport->year,
                 'total_percentage' => (float) $currentReport->total_percentage,
+                'status' => $currentReport->status,
                 'submitted_at' => optional($currentReport->submitted_at)?->toIso8601String(),
+                'reviewed_at' => optional($currentReport->reviewed_at)?->toIso8601String(),
+                'review_notes' => $currentReport->review_notes,
+                'reviewer_name' => $currentReport->reviewer?->name,
                 'is_locked' => LoePeriod::isClosed($currentReport->month, $currentReport->year, $user),
+                'warnings' => LoeInsights::reportWarnings($currentReport, $user),
                 'entries' => $currentReport->entries->map(fn ($entry) => [
                     'id' => $entry->id,
                     'project_id' => $entry->project_id,
@@ -84,6 +106,11 @@ class EmployeeDashboardController extends Controller
             'reports' => $reports,
             'allocations' => $user->allocations->map(fn ($allocation) => [
                 'id' => $allocation->id,
+                'project_id' => $allocation->project_id,
+                'project_name' => $allocation->project?->name,
+                'percentage' => (float) $allocation->percentage,
+            ])->values(),
+            'prefill_entries' => $user->allocations->map(fn ($allocation) => [
                 'project_id' => $allocation->project_id,
                 'project_name' => $allocation->project?->name,
                 'percentage' => (float) $allocation->percentage,

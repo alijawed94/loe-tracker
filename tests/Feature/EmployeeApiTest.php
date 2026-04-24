@@ -130,6 +130,41 @@ class EmployeeApiTest extends TestCase
         ]);
     }
 
+    public function test_employee_can_save_a_draft_and_submit_it_later(): void
+    {
+        Notification::fake();
+
+        $employee = $this->createUserWithRoles(['employee'], ['timezone' => 'Asia/Karachi']);
+        $project = Project::factory()->create(['status' => true]);
+
+        $this->actingAs($employee);
+
+        $draftResponse = $this->postJson('/api/employee/reports', [
+            'month' => 11,
+            'year' => 2099,
+            'status' => 'draft',
+            'entries' => [
+                ['project_id' => $project->id, 'percentage' => 45],
+            ],
+        ]);
+
+        $draftResponse
+            ->assertCreated()
+            ->assertJsonPath('status', 'draft')
+            ->assertJsonPath('submitted_at', null);
+
+        $reportId = $draftResponse->json('id');
+
+        $this->putJson("/api/employee/reports/{$reportId}", [
+            'status' => 'submitted',
+            'entries' => [
+                ['project_id' => $project->id, 'percentage' => 85],
+            ],
+        ])
+            ->assertOk()
+            ->assertJsonPath('status', 'submitted');
+    }
+
     public function test_employee_cannot_create_duplicate_monthly_loe_reports(): void
     {
         Notification::fake();

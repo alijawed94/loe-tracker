@@ -8,6 +8,7 @@ use App\Models\Allocation;
 use App\Models\LoeReport;
 use App\Models\Project;
 use App\Models\User;
+use App\Support\LoeInsights;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -21,6 +22,72 @@ class AdminDashboardController extends Controller
         $submittedCount = LoeReport::query()->where('month', $month)->where('year', $year)->count();
         $employeeCount = User::query()->where('status', true)->whereHas('roles', fn ($query) => $query->where('name', 'employee'))->count();
         $missingCount = max($employeeCount - $submittedCount, 0);
+        $employees = User::query()
+            ->with([
+                'allocations',
+                'loeReports' => fn ($query) => $query->where('month', $month)->where('year', $year),
+            ])
+            ->where('status', true)
+            ->whereHas('roles', fn ($query) => $query->where('name', 'employee'))
+            ->get();
+
+        $exceptions = $employees->flatMap(function (User $user) {
+            $report = $user->loeReports->first();
+
+            if (! $report) {
+                return [[
+                    'type' => 'missing_submission',
+                    'severity' => 'critical',
+                    'user_id' => $user->id,
+                    'employee' => $user->name,
+                    'employee_code' => $user->employee_code,
+                    'message' => 'No LOE has been submitted for the selected month.',
+                ]];
+            }
+
+            $baseWarnings = collect(LoeInsights::reportWarnings($report, $user))
+                ->map(fn ($warning) => [
+                    'type' => 'report_warning',
+                    'severity' => $warning['level'],
+                    'user_id' => $user->id,
+                    'employee' => $user->name,
+                    'employee_code' => $user->employee_code,
+                    'report_id' => $report->id,
+                    'message' => $warning['message'],
+                ]);
+
+            $workflowWarnings = collect();
+
+            if ($report->status === 'draft') {
+                $workflowWarnings->push([
+                    'type' => 'draft_report',
+                    'severity' => 'medium',
+                    'user_id' => $user->id,
+                    'employee' => $user->name,
+                    'employee_code' => $user->employee_code,
+                    'report_id' => $report->id,
+                    'message' => 'LOE is still saved as draft.',
+                ]);
+            }
+
+            if ($report->status === 'submitted') {
+                $workflowWarnings->push([
+                    'type' => 'pending_review',
+                    'severity' => 'medium',
+                    'user_id' => $user->id,
+                    'employee' => $user->name,
+                    'employee_code' => $user->employee_code,
+                    'report_id' => $report->id,
+                    'message' => 'LOE has been submitted and is awaiting review.',
+                ]);
+            }
+
+            return $baseWarnings->merge($workflowWarnings);
+        })->sortByDesc(fn ($row) => match ($row['severity']) {
+            'critical' => 3,
+            'medium' => 2,
+            default => 1,
+        })->values()->take(12);
 
         return response()->json([
             'metrics' => [
@@ -81,6 +148,7 @@ class AdminDashboardController extends Controller
                     })
                     ->values(),
             ],
+            'exceptions' => $exceptions,
         ]);
     }
 }

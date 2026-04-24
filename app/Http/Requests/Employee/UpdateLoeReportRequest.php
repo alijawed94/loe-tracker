@@ -23,6 +23,7 @@ class UpdateLoeReportRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'status' => ['nullable', 'in:draft,submitted'],
             'entries' => ['required', 'array', 'min:1'],
             'entries.*.project_id' => ['required', 'distinct', 'exists:projects,id'],
             'entries.*.percentage' => ['required', 'numeric', 'gt:0', 'max:100'],

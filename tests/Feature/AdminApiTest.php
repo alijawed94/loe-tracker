@@ -7,9 +7,11 @@ use App\Models\LoeFeedback;
 use App\Models\LoeEntry;
 use App\Models\LoeReport;
 use App\Models\Project;
+use App\Models\User;
 use App\Notifications\LoeFeedbackNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
+use Spatie\Activitylog\Models\Activity;
 use Tests\Concerns\InteractsWithRoles;
 use Tests\TestCase;
 
@@ -51,12 +53,14 @@ class AdminApiTest extends TestCase
             ->assertJsonStructure([
                 'metrics' => ['active_employees', 'active_projects', 'submitted_loe_reports', 'missing_submissions', 'current_allocation_total'],
                 'charts' => ['project_allocation_headcount', 'engagement_distribution', 'submission_trend', 'allocation_vs_actual'],
+                'exceptions',
             ]);
 
         $this->assertIsArray($response->json('charts.project_allocation_headcount'));
         $this->assertIsArray($response->json('charts.submission_trend'));
         $this->assertIsArray($response->json('charts.engagement_distribution'));
         $this->assertIsArray($response->json('charts.allocation_vs_actual'));
+        $this->assertIsArray($response->json('exceptions'));
     }
 
     public function test_admin_can_crud_users(): void
@@ -112,6 +116,39 @@ class AdminApiTest extends TestCase
         ]);
     }
 
+    public function test_password_changes_are_not_captured_in_activity_logs(): void
+    {
+        $admin = $this->createUserWithRoles(['admin']);
+        $user = $this->createUserWithRoles(['employee'], [
+            'email' => 'safe-log-user@example.com',
+        ]);
+
+        $this->actingAs($admin);
+
+        $this->putJson("/api/admin/users/{$user->id}", [
+            'name' => $user->name,
+            'email' => $user->email,
+            'employee_code' => $user->employee_code,
+            'designation' => $user->designation,
+            'stream' => $user->stream,
+            'timezone' => $user->timezone,
+            'status' => true,
+            'password' => 'ChangedPassword@123',
+            'roles' => ['employee'],
+        ])->assertOk();
+
+        $activities = Activity::query()
+            ->where('log_name', 'users')
+            ->where('subject_type', User::class)
+            ->where('subject_id', $user->id)
+            ->latest()
+            ->get();
+
+        $this->assertTrue($activities->isNotEmpty());
+        $this->assertStringNotContainsString('ChangedPassword@123', $activities->pluck('properties')->toJson());
+        $this->assertStringNotContainsString('password', $activities->pluck('properties')->toJson());
+    }
+
     public function test_admin_can_view_user_loe_history(): void
     {
         $admin = $this->createUserWithRoles(['admin']);
@@ -165,6 +202,34 @@ class AdminApiTest extends TestCase
         $this->get("/api/admin/users/{$employee->id}/loe-reports/export?format=xlsx")
             ->assertOk()
             ->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    }
+
+    public function test_admin_can_approve_a_users_loe(): void
+    {
+        $admin = $this->createUserWithRoles(['admin']);
+        $employee = $this->createUserWithRoles(['employee']);
+        $report = LoeReport::factory()->create([
+            'user_id' => $employee->id,
+            'month' => 4,
+            'year' => 2026,
+            'status' => 'submitted',
+        ]);
+
+        $this->actingAs($admin);
+
+        $this->patchJson("/api/admin/users/{$employee->id}/loe-reports/{$report->id}/review", [
+            'status' => 'approved',
+            'review_notes' => 'Looks good for reporting.',
+        ])
+            ->assertOk()
+            ->assertJsonPath('report.status', 'approved');
+
+        $this->assertDatabaseHas('loe_reports', [
+            'id' => $report->id,
+            'status' => 'approved',
+            'review_notes' => 'Looks good for reporting.',
+            'reviewed_by' => $admin->id,
+        ]);
     }
 
     public function test_admin_can_leave_feedback_on_employee_loe_and_employee_is_notified(): void

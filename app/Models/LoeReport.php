@@ -23,13 +23,18 @@ class LoeReport extends Model
         'month',
         'year',
         'total_percentage',
+        'status',
         'submitted_at',
+        'reviewed_by',
+        'reviewed_at',
+        'review_notes',
     ];
 
     protected function casts(): array
     {
         return [
             'submitted_at' => 'datetime',
+            'reviewed_at' => 'datetime',
             'total_percentage' => 'decimal:2',
         ];
     }
@@ -37,6 +42,11 @@ class LoeReport extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function reviewer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reviewed_by');
     }
 
     public function entries(): HasMany

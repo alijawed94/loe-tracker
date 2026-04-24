@@ -25,6 +25,7 @@ class StoreLoeReportRequest extends FormRequest
         return [
             'month' => ['required', 'integer', 'between:1,12'],
             'year' => ['required', 'integer', 'between:2020,2100'],
+            'status' => ['nullable', 'in:draft,submitted'],
             'entries' => ['required', 'array', 'min:1'],
             'entries.*.project_id' => ['required', 'distinct', 'exists:projects,id'],
             'entries.*.percentage' => ['required', 'numeric', 'gt:0', 'max:100'],

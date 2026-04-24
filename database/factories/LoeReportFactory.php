@@ -24,6 +24,7 @@ class LoeReportFactory extends Factory
             'month' => (int) fake()->numberBetween(1, 12),
             'year' => (int) fake()->numberBetween(2024, 2030),
             'total_percentage' => fake()->randomFloat(2, 1, 100),
+            'status' => 'submitted',
             'submitted_at' => now(),
         ];
     }

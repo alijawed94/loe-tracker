@@ -45,6 +45,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/reports/export', [ReportController::class, 'export']);
         Route::get('/users/{user}/loe-reports', [UserController::class, 'loeReports']);
         Route::get('/users/{user}/loe-reports/export', [UserController::class, 'exportLoeReports']);
+        Route::patch('/users/{user}/loe-reports/{loeReport}/review', [UserController::class, 'reviewLoeReport']);
         Route::apiResource('users', UserController::class);
         Route::apiResource('projects', ProjectController::class);
         Route::apiResource('allocations', AllocationController::class);

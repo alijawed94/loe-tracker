@@ -15,6 +15,7 @@ class ActivityLogController extends Controller
             ->with(['causer', 'subject'])
             ->when($request->filled('log_name'), fn ($query) => $query->where('log_name', $request->string('log_name')->value()))
             ->when($request->filled('event'), fn ($query) => $query->where('event', $request->string('event')->value()))
+            ->when($request->filled('subject'), fn ($query) => $query->where('subject_type', 'like', '%'.$request->string('subject')->value()))
             ->when($request->filled('causer_id'), fn ($query) => $query->where('causer_id', $request->string('causer_id')->value()))
             ->latest()
             ->paginate(20)
@@ -36,6 +37,23 @@ class ActivityLogController extends Controller
                 'properties' => $activity->properties,
             ]);
 
-        return response()->json($activities);
+        $actors = Activity::query()
+            ->with('causer')
+            ->whereNotNull('causer_id')
+            ->get()
+            ->map(fn (Activity $activity) => $activity->causer ? [
+                'value' => $activity->causer->id,
+                'label' => $activity->causer->name.' ('.$activity->causer->email.')',
+            ] : null)
+            ->filter()
+            ->unique('value')
+            ->values();
+
+        return response()->json([
+            ...$activities->toArray(),
+            'filter_options' => [
+                'actors' => $actors,
+            ],
+        ]);
     }
 }

@@ -4,10 +4,14 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Exports\ArrayReportExport;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\ReviewLoeReportRequest;
 use App\Http\Requests\Admin\StoreUserRequest;
 use App\Http\Requests\Admin\UpdateUserRequest;
+use App\Models\LoeReport;
 use App\Models\Role;
 use App\Models\User;
+use App\Notifications\LoeReviewStatusNotification;
+use App\Support\LoeInsights;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -80,7 +84,7 @@ class UserController extends Controller
         $user->load('roles');
 
         $reports = $user->loeReports()
-            ->with(['entries.project', 'feedback.user.roles'])
+            ->with(['entries.project', 'feedback.user.roles', 'reviewer'])
             ->orderByDesc('year')
             ->orderByDesc('month')
             ->orderByDesc('submitted_at')
@@ -90,7 +94,12 @@ class UserController extends Controller
                 'month' => $report->month,
                 'year' => $report->year,
                 'total_percentage' => (float) $report->total_percentage,
+                'status' => $report->status,
                 'submitted_at' => optional($report->submitted_at)?->toIso8601String(),
+                'reviewed_at' => optional($report->reviewed_at)?->toIso8601String(),
+                'review_notes' => $report->review_notes,
+                'reviewer_name' => $report->reviewer?->name,
+                'warnings' => LoeInsights::reportWarnings($report, $user),
                 'entries' => $report->entries->map(fn ($entry) => [
                     'id' => $entry->id,
                     'project_name' => $entry->project?->name,
@@ -122,6 +131,26 @@ class UserController extends Controller
                 'roles' => $user->roles->pluck('name')->values()->all(),
             ],
             'reports' => $reports,
+        ]);
+    }
+
+    public function reviewLoeReport(ReviewLoeReportRequest $request, User $user, LoeReport $loeReport): JsonResponse
+    {
+        abort_unless($loeReport->user_id === $user->id, 404);
+
+        $loeReport->update([
+            'status' => $request->validated('status'),
+            'reviewed_by' => $request->user()->id,
+            'reviewed_at' => now(),
+            'review_notes' => $request->validated('review_notes'),
+        ]);
+
+        $loeReport->refresh()->load('reviewer');
+        $user->notify(new LoeReviewStatusNotification($loeReport));
+
+        return response()->json([
+            'message' => 'LOE review updated successfully.',
+            'report' => $loeReport,
         ]);
     }
 
