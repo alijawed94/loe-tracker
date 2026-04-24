@@ -29,7 +29,7 @@ class ReportFilterRequest extends FormRequest
             'user_id' => ['nullable', 'exists:users,id'],
             'project_id' => ['nullable', 'exists:projects,id'],
             'format' => ['nullable', Rule::in(['json', 'pdf', 'xlsx'])],
-            'type' => ['nullable', Rule::in(['employee-monthly', 'employee-yearly', 'project-summary', 'missing-submissions', 'allocation-variance'])],
+            'type' => ['nullable', Rule::in(['employee-monthly', 'employee-yearly', 'project-summary', 'missing-submissions', 'allocation-variance', 'compliance-scorecard', 'employee-consistency', 'time-off-impact', 'reviewer-effectiveness', 'system-effectiveness-summary'])],
         ];
     }
 }

@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\LoeEntry;
+use App\Models\LoeReport;
 use App\Models\Project;
 use App\Support\LoeInsights;
 use App\Support\LoePeriod;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -63,6 +65,68 @@ class EmployeeDashboardController extends Controller
                 ])->values(),
             ]);
 
+        $currentEntries = collect($currentReport?->entries ?? []);
+        $currentProjectTotal = round($currentEntries->where('entry_type', LoeEntry::ENTRY_TYPE_PROJECT)->sum('percentage'), 2);
+        $currentTimeOffTotal = round($currentEntries->where('entry_type', LoeEntry::ENTRY_TYPE_TIME_OFF)->sum('percentage'), 2);
+        $currentTotal = (float) ($currentReport?->total_percentage ?? 0);
+        $allocationTotal = round((float) $user->allocations->sum('percentage'), 2);
+        $variance = round(abs($allocationTotal - $currentTotal), 2);
+        $previousReport = $user->loeReports
+            ->where(fn ($report) => sprintf('%04d-%02d', $report->year, $report->month) < sprintf('%04d-%02d', $now->year, $now->month))
+            ->sortByDesc(fn ($report) => sprintf('%04d-%02d', $report->year, $report->month))
+            ->first();
+
+        $trend = collect(range(5, 0))->reverse()->map(function ($offset) use ($user, $now) {
+            $period = CarbonImmutable::create($now->year, $now->month, 1, 0, 0, 0, $user->timezone)->subMonthsNoOverflow($offset);
+            /** @var LoeReport|null $report */
+            $report = $user->loeReports->first(fn ($item) => $item->month === $period->month && $item->year === $period->year);
+            $entries = collect($report?->entries ?? []);
+
+            return [
+                'month' => $period->format('M Y'),
+                'total_percentage' => (float) ($report?->total_percentage ?? 0),
+                'project_percentage' => round($entries->where('entry_type', LoeEntry::ENTRY_TYPE_PROJECT)->sum('percentage'), 2),
+                'time_off_percentage' => round($entries->where('entry_type', LoeEntry::ENTRY_TYPE_TIME_OFF)->sum('percentage'), 2),
+            ];
+        })->push([
+            'month' => $now->format('M Y'),
+            'total_percentage' => $currentTotal,
+            'project_percentage' => $currentProjectTotal,
+            'time_off_percentage' => $currentTimeOffTotal,
+        ])->values();
+
+        $insights = collect();
+        $insights->push([
+            'title' => 'Current month coverage',
+            'message' => $currentTotal > 0
+                ? sprintf('You have logged %s so far, with %s still unassigned.', round($currentTotal, 2).'%', max(100 - $currentTotal, 0).'%')
+                : 'You have not logged any LOE for the current month yet.',
+        ]);
+        $insights->push([
+            'title' => 'Time off impact',
+            'message' => $currentTimeOffTotal > 0
+                ? sprintf('Time off accounts for %s of this month.', round($currentTimeOffTotal, 2).'%')
+                : 'No time off has been logged for this month.',
+        ]);
+        $insights->push([
+            'title' => 'Allocation variance',
+            'message' => $allocationTotal > 0
+                ? sprintf('Your LOE differs from your allocations by %s.', round($variance, 2).'%')
+                : 'No current allocations are assigned, so variance tracking is not active.',
+        ]);
+        if ($previousReport) {
+            $delta = round($currentTotal - (float) $previousReport->total_percentage, 2);
+            $insights->push([
+                'title' => 'Month over month',
+                'message' => sprintf(
+                    'Compared to %s, your total LOE is %s by %s.',
+                    CarbonImmutable::create($previousReport->year, $previousReport->month, 1)->format('F Y'),
+                    $delta >= 0 ? 'up' : 'down',
+                    abs($delta).'%',
+                ),
+            ]);
+        }
+
         return response()->json([
             'current_period' => [
                 'month' => $now->month,
@@ -95,6 +159,27 @@ class EmployeeDashboardController extends Controller
                 ])->values(),
             ] : null,
             'reports' => $reports,
+            'metrics' => [
+                'current_total' => $currentTotal,
+                'remaining_percentage' => round(max(100 - $currentTotal, 0), 2),
+                'project_percentage' => $currentProjectTotal,
+                'time_off_percentage' => $currentTimeOffTotal,
+                'allocation_variance' => $variance,
+                'projects_logged' => $currentEntries->where('entry_type', LoeEntry::ENTRY_TYPE_PROJECT)->count(),
+                'time_off_entries' => $currentEntries->where('entry_type', LoeEntry::ENTRY_TYPE_TIME_OFF)->count(),
+            ],
+            'charts' => [
+                'current_breakdown' => [
+                    ['label' => 'Project Work', 'value' => $currentProjectTotal],
+                    ['label' => 'Time Off', 'value' => $currentTimeOffTotal],
+                ],
+                'six_month_trend' => $trend,
+                'allocation_vs_actual' => [
+                    ['label' => 'Allocated', 'value' => $allocationTotal],
+                    ['label' => 'Actual', 'value' => $currentTotal],
+                ],
+            ],
+            'insights' => $insights->values(),
             'allocations' => $user->allocations->map(fn ($allocation) => [
                 'id' => $allocation->id,
                 'project_id' => $allocation->project_id,

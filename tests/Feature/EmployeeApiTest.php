@@ -56,7 +56,12 @@ class EmployeeApiTest extends TestCase
             ->assertOk()
             ->assertJsonCount(1, 'allocations')
             ->assertJsonCount(1, 'reports')
-            ->assertJsonPath('reports.0.id', $report->id);
+            ->assertJsonPath('reports.0.id', $report->id)
+            ->assertJsonStructure([
+                'metrics' => ['current_total', 'remaining_percentage', 'project_percentage', 'time_off_percentage', 'allocation_variance', 'projects_logged', 'time_off_entries'],
+                'charts' => ['current_breakdown', 'six_month_trend', 'allocation_vs_actual'],
+                'insights',
+            ]);
     }
 
     public function test_employee_can_list_create_show_update_and_export_loe_reports(): void

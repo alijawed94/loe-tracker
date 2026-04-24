@@ -32,6 +32,8 @@ import {
     Bar,
     BarChart,
     CartesianGrid,
+    Cell,
+    Legend,
     Pie,
     PieChart,
     ResponsiveContainer,
@@ -39,6 +41,44 @@ import {
     XAxis,
     YAxis,
 } from 'recharts';
+
+const chartSliceColors = ['#93c5fd', '#a7f3d0', '#86efac', '#fdba74', '#c4b5fd', '#67e8f9', '#fcd34d', '#818cf8'];
+const adminChartSliceColors = ['#60a5fa', '#f59e0b', '#ef4444', '#10b981', '#8b5cf6', '#06b6d4', '#eab308', '#f97316'];
+const chartSeriesColors = {
+    blue: '#93c5fd',
+    mint: '#a7f3d0',
+    green: '#86efac',
+    orange: '#fdba74',
+    purple: '#c4b5fd',
+    cyan: '#67e8f9',
+    yellow: '#fcd34d',
+    indigo: '#818cf8',
+    lime: '#bef264',
+    red: '#f87171',
+    teal: '#2dd4bf',
+    amber: '#fbbf24',
+};
+const chartLegendProps = {
+    wrapperStyle: { color: '#cbd5e1', fontSize: '12px', paddingTop: '12px' },
+};
+
+function getLoeQualityColor(label, fallbackIndex = 0) {
+    const normalizedLabel = String(label ?? '').trim().toLowerCase();
+
+    if (normalizedLabel === 'critical') {
+        return '#ef4444';
+    }
+
+    if (normalizedLabel === 'medium') {
+        return '#f59e0b';
+    }
+
+    if (normalizedLabel === 'good') {
+        return '#22c55e';
+    }
+
+    return adminChartSliceColors[fallbackIndex % adminChartSliceColors.length];
+}
 
 const adminNav = [
     { to: '/admin/dashboard', label: 'Dashboard', icon: Squares2X2Icon },
@@ -51,7 +91,8 @@ const adminNav = [
 ];
 
 const employeeNav = [
-    { to: '/app/dashboard', label: 'My LOE', icon: ClipboardDocumentListIcon },
+    { to: '/app/dashboard', label: 'Dashboard', icon: Squares2X2Icon },
+    { to: '/app/history', label: 'Previous Submissions', icon: ClockIcon },
     { to: '/app/notifications', label: 'Notifications', icon: BellIcon },
 ];
 
@@ -360,6 +401,7 @@ function EmployeeShell({ user, setUser }) {
         <Shell title="Employee Workspace" user={user} navItems={employeeNav} setUser={setUser}>
             <Routes>
                 <Route path="dashboard" element={<EmployeeDashboardPage user={user} />} />
+                <Route path="history" element={<EmployeeHistoryPage user={user} />} />
                 <Route path="notifications" element={<NotificationsPage role="employee" />} />
                 <Route path="*" element={<Navigate to="dashboard" replace />} />
             </Routes>
@@ -647,6 +689,32 @@ function EmployeeDashboardPage({ user }) {
                 {message ? <p className="mt-5 rounded-2xl bg-white/8 px-4 py-3 text-sm text-slate-200">{message}</p> : null}
             </section>
 
+            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                {[
+                    { key: 'current_total', label: 'Current Total', icon: ClipboardDocumentListIcon },
+                    { key: 'remaining_percentage', label: 'Remaining', icon: ChartBarIcon },
+                    { key: 'project_percentage', label: 'Project Work', icon: FolderIcon },
+                    { key: 'time_off_percentage', label: 'Time Off', icon: ClockIcon },
+                    { key: 'allocation_variance', label: 'Variance', icon: ExclamationTriangleIcon },
+                    { key: 'projects_logged', label: 'Projects Logged', icon: Squares2X2Icon, plain: true },
+                    { key: 'time_off_entries', label: 'Time Off Entries', icon: BellIcon, plain: true },
+                ].map((item) => (
+                    <div className="metric-card" key={item.key}>
+                        <div className="flex items-start justify-between gap-4">
+                            <div>
+                                <p className="text-sm uppercase tracking-[0.2em] text-slate-400">{item.label}</p>
+                                <p className="mt-4 text-3xl font-semibold text-white">
+                                    {item.plain ? (data.metrics?.[item.key] ?? 0) : formatPercentage(data.metrics?.[item.key] ?? 0)}
+                                </p>
+                            </div>
+                            <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[rgba(0,169,158,0.14)] text-[#7ff4e4]">
+                                <item.icon className="h-5 w-5" />
+                            </span>
+                        </div>
+                    </div>
+                ))}
+            </section>
+
             <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
                 <section className="glass-panel rounded-[2rem] p-6">
                     <div>
@@ -725,66 +793,66 @@ function EmployeeDashboardPage({ user }) {
                 </section>
             </div>
 
-            <section className="glass-panel rounded-[2rem] p-8">
-                <h3 className="text-xl font-semibold text-white">Previous Submissions</h3>
-                <div className="mt-5 overflow-auto">
-                    <table className="min-w-full text-left text-sm text-slate-200">
-                        <thead className="text-slate-400">
-                            <tr>
-                                <th className="pb-4 pr-4">Month / Year</th>
-                                <th className="pb-4 pr-4">Total</th>
-                                <th className="pb-4 pr-4">Entry</th>
-                                <th className="pb-4 pr-4">Percentage</th>
-                                <th className="pb-4">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {data.reports.map((report) => (
-                                report.entries.map((entry, entryIndex) => (
-                                    <tr className="border-t border-white/8 align-top" key={`${report.id}-${entry.id}`}>
-                                        {entryIndex === 0 ? (
-                                            <>
-                                                <td className="py-4 pr-4" rowSpan={report.entries.length}>
-                                                    <div>
-                                                        <p className="font-semibold text-white">{dayjs(`${report.year}-${report.month}-01`).format('MMMM YYYY')}</p>
-                                                        <div className="mt-2 flex flex-wrap items-center gap-2">
-                                                            <span className={clsx('rounded-full px-3 py-1 text-xs uppercase tracking-[0.18em]', statusBadgeClass(report.status))}>
-                                                                {humanizeStatus(report.status)}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td className="py-4 pr-4" rowSpan={report.entries.length}>
-                                                    <span className="font-semibold text-white">{formatPercentage(report.total_percentage)}</span>
-                                                </td>
-                                            </>
-                                        ) : null}
-                                        <td className="py-4 pr-4">{entry.entry_label}</td>
-                                        <td className="py-4 pr-4">{formatPercentage(entry.percentage)}</td>
-                                        {entryIndex === 0 ? (
-                                            <td className="py-4" rowSpan={report.entries.length}>
-                                                <div className="flex gap-2">
-                                                    <button className="btn btn-secondary flex items-center gap-2 py-2" onClick={() => setFeedbackReport(report)} type="button"><ChatBubbleLeftRightIcon className="h-4 w-4" /> <span>Feedback</span></button>
-                                                    {!report.is_locked ? (
-                                                        <button className="btn btn-secondary flex items-center gap-2 py-2" onClick={() => openEditModal(report)} type="button"><PencilSquareIcon className="h-4 w-4" /> <span>Edit</span></button>
-                                                    ) : null}
-                                                    <button className="btn btn-danger flex items-center gap-2 py-2" disabled={deletingReportId === report.id} onClick={() => requestDeleteReport(report)} type="button">
-                                                        <TrashIcon className="h-4 w-4" />
-                                                        {deletingReportId === report.id ? 'Deleting...' : 'Delete'}
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        ) : null}
-                                    </tr>
-                                ))
-                            ))}
-                        </tbody>
-                    </table>
-                    {!data.reports.length ? (
-                        <div className="rounded-3xl border border-dashed border-white/12 bg-slate-950/20 p-6 text-slate-300">
-                            No previous submissions found yet.
+            <div className="grid gap-6 xl:grid-cols-2">
+                <ChartCard title="Current Month Breakdown">
+                    <ResponsiveContainer width="100%" height={260}>
+                        <PieChart>
+                            <Pie data={data.charts.current_breakdown} dataKey="value" nameKey="label" outerRadius={86} innerRadius={44} paddingAngle={3}>
+                                {data.charts.current_breakdown.map((entry, index) => (
+                                    <Cell key={`${entry.label}-${index}`} fill={chartSliceColors[index % chartSliceColors.length]} />
+                                ))}
+                            </Pie>
+                            <Tooltip formatter={(value) => formatPercentage(value)} />
+                            <Legend {...chartLegendProps} formatter={(value) => `${value} (%)`} />
+                        </PieChart>
+                    </ResponsiveContainer>
+                </ChartCard>
+                <ChartCard title="Allocation vs Actual">
+                    <ResponsiveContainer width="100%" height={260}>
+                        <BarChart data={data.charts.allocation_vs_actual}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                            <XAxis dataKey="label" stroke="#94a3b8" />
+                            <YAxis stroke="#94a3b8" />
+                            <Tooltip />
+                            <Bar dataKey="value" name="Percentage (%)" radius={[8, 8, 0, 0]}>
+                                {data.charts.allocation_vs_actual.map((entry, index) => (
+                                    <Cell key={`${entry.label}-${index}`} fill={index % 2 === 0 ? chartSeriesColors.blue : chartSeriesColors.mint} />
+                                ))}
+                            </Bar>
+                        </BarChart>
+                    </ResponsiveContainer>
+                </ChartCard>
+            </div>
+
+            <ChartCard title="Six Month Trend">
+                <ResponsiveContainer width="100%" height={300}>
+                    <AreaChart data={data.charts.six_month_trend}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                        <XAxis dataKey="month" stroke="#94a3b8" />
+                        <YAxis stroke="#94a3b8" />
+                        <Tooltip />
+                        <Legend {...chartLegendProps} />
+                        <Area type="monotone" dataKey="project_percentage" name="Project Work (%)" stackId="1" stroke={chartSeriesColors.blue} fill={chartSeriesColors.blue} fillOpacity={0.3} />
+                        <Area type="monotone" dataKey="time_off_percentage" name="Time Off (%)" stackId="1" stroke={chartSeriesColors.orange} fill={chartSeriesColors.orange} fillOpacity={0.26} />
+                        <Area type="monotone" dataKey="total_percentage" name="Total LOE (%)" stroke={chartSeriesColors.purple} fill={chartSeriesColors.purple} fillOpacity={0.14} />
+                    </AreaChart>
+                </ResponsiveContainer>
+            </ChartCard>
+
+            <section className="glass-panel rounded-[2rem] p-6">
+                <div className="flex items-start justify-between gap-4">
+                    <div>
+                        <h3 className="text-xl font-semibold text-white">Quick Insights</h3>
+                        <p className="mt-2 text-slate-300">A simple read on how this month is shaping up.</p>
+                    </div>
+                </div>
+                <div className="mt-5 grid gap-4 md:grid-cols-2">
+                    {data.insights?.map((insight, index) => (
+                        <div className="rounded-3xl border border-white/10 bg-slate-950/25 p-5" key={index}>
+                            <p className="text-sm uppercase tracking-[0.18em] text-slate-400">{insight.title}</p>
+                            <p className="mt-3 text-sm leading-6 text-slate-200">{insight.message}</p>
                         </div>
-                    ) : null}
+                    ))}
                 </div>
             </section>
 
@@ -906,6 +974,322 @@ function EmployeeDashboardPage({ user }) {
     );
 }
 
+function EmployeeHistoryPage({ user }) {
+    const [data, setData] = useState(null);
+    const [saving, setSaving] = useState(false);
+    const [deletingReportId, setDeletingReportId] = useState(null);
+    const [message, setMessage] = useState('');
+    const [form, setForm] = useState({ month: dayjs().month() + 1, year: dayjs().year(), entries: [createEmptyLoeEntry()] });
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingReportId, setEditingReportId] = useState(null);
+    const [feedbackReport, setFeedbackReport] = useState(null);
+    const [saveIntent, setSaveIntent] = useState('submitted');
+    const [deleteReportTarget, setDeleteReportTarget] = useState(null);
+
+    const load = async () => {
+        const response = await axios.get('/api/employee/dashboard');
+        setData(response.data);
+    };
+
+    useEffect(() => { load(); }, []);
+
+    const editingReport = useMemo(
+        () => data?.reports.find((report) => report.id === editingReportId) ?? null,
+        [data, editingReportId],
+    );
+    const isLocked = editingReport?.is_locked ?? false;
+    const totalPercentage = form.entries.reduce((sum, entry) => sum + (Number(entry.percentage) || 0), 0).toFixed(2);
+    const allocationTotal = Number(data?.allocations?.reduce((sum, allocation) => sum + Number(allocation.percentage || 0), 0) ?? 0);
+    const liveWarnings = getLoeWarnings(Number(totalPercentage), allocationTotal);
+
+    const openEditModal = (report) => {
+        setMessage('');
+        setEditingReportId(report.id);
+        setSaveIntent(report.status ?? 'submitted');
+        setForm({
+            month: report.month,
+            year: report.year,
+            entries: report.entries.length ? report.entries.map(normalizeLoeEntry) : [createEmptyLoeEntry()],
+        });
+        setIsModalOpen(true);
+    };
+
+    const closeModal = () => {
+        if (!saving) {
+            setIsModalOpen(false);
+            setEditingReportId(null);
+            setSaveIntent('submitted');
+        }
+    };
+
+    const copyPreviousMonth = () => {
+        const sourceReport = data?.reports.find((report) => report.id !== editingReportId);
+
+        if (!sourceReport) {
+            setMessage('No previous LOE found to copy.');
+            return;
+        }
+
+        setForm((current) => ({
+            ...current,
+            entries: sourceReport.entries.map(normalizeLoeEntry),
+        }));
+        setMessage(`Copied entries from ${dayjs(`${sourceReport.year}-${String(sourceReport.month).padStart(2, '0')}-01`).format('MMMM YYYY')}.`);
+    };
+
+    const updateEntry = (index, key, value) => {
+        setForm((current) => ({
+            ...current,
+            entries: current.entries.map((entry, entryIndex) => entryIndex === index ? { ...entry, [key]: value } : entry),
+        }));
+    };
+
+    const updateEntryType = (index, value) => {
+        setForm((current) => ({
+            ...current,
+            entries: current.entries.map((entry, entryIndex) => {
+                if (entryIndex !== index) {
+                    return entry;
+                }
+
+                return value === 'time_off'
+                    ? createEmptyLoeEntry('time_off', { percentage: entry.percentage })
+                    : createEmptyLoeEntry('project', { percentage: entry.percentage });
+            }),
+        }));
+    };
+
+    const submit = async (event, nextStatus = saveIntent) => {
+        event.preventDefault();
+        if (!editingReport) {
+            return;
+        }
+
+        setSaveIntent(nextStatus);
+        setSaving(true);
+        setMessage('');
+
+        try {
+            await axios.put(`/api/employee/reports/${editingReport.id}`, {
+                status: nextStatus,
+                entries: form.entries.map((entry) => ({
+                    entry_type: entry.entry_type,
+                    project_id: entry.entry_type === 'project' ? entry.project_id : null,
+                    time_off_type: entry.entry_type === 'time_off' ? entry.time_off_type : null,
+                    percentage: Number(entry.percentage),
+                })),
+            });
+
+            setMessage(nextStatus === 'draft' ? 'Draft updated successfully.' : 'LOE updated successfully.');
+            await load();
+            setIsModalOpen(false);
+        } catch (error) {
+            setMessage(error.response?.data?.message ?? 'Unable to save LOE.');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const requestDeleteReport = (report) => {
+        setDeleteReportTarget(report);
+    };
+
+    const confirmDeleteReport = async () => {
+        if (!deleteReportTarget) {
+            return;
+        }
+
+        setDeletingReportId(deleteReportTarget.id);
+        setMessage('');
+
+        try {
+            await axios.delete(`/api/employee/reports/${deleteReportTarget.id}`);
+            setMessage('LOE deleted successfully.');
+            await load();
+            setDeleteReportTarget(null);
+        } catch (error) {
+            setMessage(error.response?.data?.message ?? 'Unable to delete LOE.');
+        } finally {
+            setDeletingReportId(null);
+        }
+    };
+
+    if (!data) return <PageLoader label="Loading submission history..." />;
+
+    return (
+        <div className="space-y-6">
+            <section className="glass-panel rounded-[2rem] p-8">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h2 className="text-2xl font-semibold text-white">Previous Submissions</h2>
+                        <p className="mt-2 text-slate-300">Review, edit, delete, or discuss your historical LOE submissions here.</p>
+                    </div>
+                </div>
+                {message ? <p className="mt-5 rounded-2xl bg-white/8 px-4 py-3 text-sm text-slate-200">{message}</p> : null}
+            </section>
+
+            <section className="glass-panel rounded-[2rem] p-8">
+                <div className="overflow-auto">
+                    <table className="min-w-full text-left text-sm text-slate-200">
+                        <thead className="text-slate-400">
+                            <tr>
+                                <th className="pb-4 pr-4">Month / Year</th>
+                                <th className="pb-4 pr-4">Total</th>
+                                <th className="pb-4 pr-4">Entry</th>
+                                <th className="pb-4 pr-4">Percentage</th>
+                                <th className="pb-4">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {data.reports.map((report) => (
+                                report.entries.map((entry, entryIndex) => (
+                                    <tr className="border-t border-white/8 align-top" key={`${report.id}-${entry.id}`}>
+                                        {entryIndex === 0 ? (
+                                            <>
+                                                <td className="py-4 pr-4" rowSpan={report.entries.length}>
+                                                    <div>
+                                                        <p className="font-semibold text-white">{dayjs(`${report.year}-${report.month}-01`).format('MMMM YYYY')}</p>
+                                                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                                                            <span className={clsx('rounded-full px-3 py-1 text-xs uppercase tracking-[0.18em]', statusBadgeClass(report.status))}>
+                                                                {humanizeStatus(report.status)}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="py-4 pr-4" rowSpan={report.entries.length}>
+                                                    <span className="font-semibold text-white">{formatPercentage(report.total_percentage)}</span>
+                                                </td>
+                                            </>
+                                        ) : null}
+                                        <td className="py-4 pr-4">{entry.entry_label}</td>
+                                        <td className="py-4 pr-4">{formatPercentage(entry.percentage)}</td>
+                                        {entryIndex === 0 ? (
+                                            <td className="py-4" rowSpan={report.entries.length}>
+                                                <div className="flex gap-2">
+                                                    <button className="btn btn-secondary flex items-center gap-2 py-2" onClick={() => setFeedbackReport(report)} type="button"><ChatBubbleLeftRightIcon className="h-4 w-4" /> <span>Feedback</span></button>
+                                                    {!report.is_locked ? (
+                                                        <button className="btn btn-secondary flex items-center gap-2 py-2" onClick={() => openEditModal(report)} type="button"><PencilSquareIcon className="h-4 w-4" /> <span>Edit</span></button>
+                                                    ) : null}
+                                                    <button className="btn btn-danger flex items-center gap-2 py-2" disabled={deletingReportId === report.id} onClick={() => requestDeleteReport(report)} type="button">
+                                                        <TrashIcon className="h-4 w-4" />
+                                                        {deletingReportId === report.id ? 'Deleting...' : 'Delete'}
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        ) : null}
+                                    </tr>
+                                ))
+                            ))}
+                        </tbody>
+                    </table>
+                    {!data.reports.length ? (
+                        <div className="rounded-3xl border border-dashed border-white/12 bg-slate-950/20 p-6 text-slate-300">
+                            No previous submissions found yet.
+                        </div>
+                    ) : null}
+                </div>
+            </section>
+
+            <Modal
+                isOpen={isModalOpen}
+                title={editingReport ? `Edit LOE for ${dayjs(`${form.year}-${form.month}-01`).format('MMMM YYYY')}` : 'Edit LOE'}
+                onClose={closeModal}
+            >
+                <form className="space-y-4" onSubmit={(event) => submit(event, saveIntent)}>
+                    <div className="grid gap-4 md:grid-cols-2">
+                        <select className="field" disabled value={String(form.month ?? '')}>
+                            {monthOptions.map((month) => (
+                                <option key={month.value} value={month.value}>{month.label}</option>
+                            ))}
+                        </select>
+                        <select className="field" disabled value={String(form.year ?? '')}>
+                            {yearOptions.map((year) => (
+                                <option key={year} value={year}>{year}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {form.entries.map((entry, index) => (
+                        <div className="grid gap-3 md:grid-cols-[180px_1fr_160px_110px]" key={index}>
+                            <select className="field" disabled={isLocked} value={entry.entry_type} onChange={(event) => updateEntryType(index, event.target.value)}>
+                                <option value="project">Project</option>
+                                <option value="time_off">Time Off</option>
+                            </select>
+                            {entry.entry_type === 'time_off' ? (
+                                <select className="field" disabled={isLocked} value={entry.time_off_type} onChange={(event) => updateEntry(index, 'time_off_type', event.target.value)}>
+                                    <option value="">Select time off type</option>
+                                    {data.time_off_types.map((type) => (
+                                        <option key={type.value} value={type.value}>{type.label}</option>
+                                    ))}
+                                </select>
+                            ) : (
+                                <select className="field" disabled={isLocked} value={entry.project_id} onChange={(event) => updateEntry(index, 'project_id', event.target.value)}>
+                                    <option value="">Select a project</option>
+                                    {data.projects.map((project) => (
+                                        <option key={project.id} value={project.id}>{project.name}</option>
+                                    ))}
+                                </select>
+                            )}
+                            <input className="field" disabled={isLocked} min="0.01" max="100" placeholder="Percentage" step="0.01" type="number" value={entry.percentage} onChange={(event) => updateEntry(index, 'percentage', event.target.value)} />
+                            <button className="btn btn-secondary" disabled={isLocked || form.entries.length === 1} onClick={() => setForm({ ...form, entries: form.entries.filter((_, rowIndex) => rowIndex !== index) })} type="button">Remove</button>
+                        </div>
+                    ))}
+
+                    <div className="flex flex-wrap gap-3">
+                        <button className="btn btn-secondary" disabled={isLocked} onClick={copyPreviousMonth} type="button">Copy Last Month</button>
+                        <button className="btn btn-secondary" disabled={isLocked} onClick={() => setForm({ ...form, entries: [...form.entries, createEmptyLoeEntry('project')] })} type="button">Add project</button>
+                        <button className="btn btn-secondary" disabled={isLocked} onClick={() => setForm({ ...form, entries: [...form.entries, createEmptyLoeEntry('time_off')] })} type="button">Add time off</button>
+                        <button className="btn btn-secondary" disabled={saving || isLocked} onClick={(event) => submit(event, 'draft')} type="button">{saving && saveIntent === 'draft' ? 'Saving...' : 'Save Draft'}</button>
+                        <button className="btn btn-primary" disabled={saving || isLocked} onClick={(event) => submit(event, 'submitted')} type="button">{saving && saveIntent === 'submitted' ? 'Saving...' : 'Submit Update'}</button>
+                    </div>
+
+                    <p className="text-sm text-slate-300">Total percentage: {formatPercentage(totalPercentage)}</p>
+                    {liveWarnings.length ? (
+                        <div className="space-y-2">
+                            {liveWarnings.map((warning, index) => (
+                                <p className={clsx('rounded-2xl px-4 py-3 text-sm', warning.level === 'critical' ? 'bg-rose-500/15 text-rose-200' : 'bg-amber-500/15 text-amber-100')} key={index}>
+                                    {warning.message}
+                                </p>
+                            ))}
+                        </div>
+                    ) : null}
+                    {isLocked ? <p className="rounded-2xl brand-badge-soft px-4 py-3 text-sm">This report is read-only because the selected month has already closed.</p> : null}
+                    {message && isModalOpen ? <p className="rounded-2xl bg-white/8 px-4 py-3 text-sm text-slate-200">{message}</p> : null}
+                </form>
+            </Modal>
+
+            <FeedbackThreadModal
+                isOpen={Boolean(feedbackReport)}
+                report={feedbackReport}
+                title={feedbackReport ? `Feedback for ${dayjs(`${feedbackReport.year}-${String(feedbackReport.month).padStart(2, '0')}-01`).format('MMMM YYYY')}` : 'Feedback'}
+                onClose={() => setFeedbackReport(null)}
+                onPosted={load}
+            />
+
+            <Modal isOpen={Boolean(deleteReportTarget)} title="Delete LOE" onClose={() => setDeleteReportTarget(null)}>
+                {deleteReportTarget ? (
+                    <div className="space-y-4">
+                        <p className="text-slate-200">
+                            Delete the LOE report for {dayjs(`${deleteReportTarget.year}-${String(deleteReportTarget.month).padStart(2, '0')}-01`).format('MMMM YYYY')}?
+                        </p>
+                        {deleteReportTarget.is_locked ? (
+                            <p className="rounded-2xl bg-rose-500/15 px-4 py-3 text-sm text-rose-200">
+                                This LOE is from a closed period and will be permanently removed.
+                            </p>
+                        ) : null}
+                        <div className="flex justify-end gap-3">
+                            <button className="btn btn-secondary" onClick={() => setDeleteReportTarget(null)} type="button">Cancel</button>
+                            <button className="btn btn-danger" disabled={deletingReportId === deleteReportTarget.id} onClick={confirmDeleteReport} type="button">
+                                {deletingReportId === deleteReportTarget.id ? 'Deleting...' : 'Delete LOE'}
+                            </button>
+                        </div>
+                    </div>
+                ) : null}
+            </Modal>
+        </div>
+    );
+}
+
 function AdminDashboardPage() {
     const [data, setData] = useState(null);
 
@@ -925,7 +1309,7 @@ function AdminDashboardPage() {
                             <div className="flex items-start justify-between gap-4">
                                 <div>
                                     <p className="text-sm uppercase tracking-[0.2em] text-slate-400">{key.replaceAll('_', ' ')}</p>
-                                    <p className="mt-4 text-3xl font-semibold text-white">{value}</p>
+                                    <p className="mt-4 text-3xl font-semibold text-white">{formatMetricValue(key, value)}</p>
                                 </div>
                                 <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[rgba(0,169,158,0.14)] text-[#7ff4e4]">
                                     {renderMetricIcon(key)}
@@ -941,10 +1325,99 @@ function AdminDashboardPage() {
                         <XAxis allowDecimals={false} stroke="#94a3b8" type="number" />
                         <YAxis dataKey="project_name" interval={0} stroke="#94a3b8" tick={{ fontSize: 12 }} type="category" width={220} />
                         <Tooltip />
-                        <Bar barSize={14} dataKey="allocated_people" fill="#2dd4bf" name="Allocated People" radius={[0, 8, 8, 0]} />
+                        <Legend {...chartLegendProps} />
+                        <Bar barSize={14} dataKey="allocated_people" fill={chartSeriesColors.teal} name="Allocated People" radius={[0, 8, 8, 0]} />
                     </BarChart>
                 </ResponsiveContainer>
             </ChartCard>
+            <div className="grid gap-6 xl:grid-cols-2">
+                <ChartCard title="Submission Status Breakdown">
+                    <ResponsiveContainer width="100%" height={280}>
+                        <BarChart data={data.charts.submission_status_breakdown}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                            <XAxis dataKey="status" stroke="#94a3b8" />
+                            <YAxis allowDecimals={false} stroke="#94a3b8" />
+                            <Tooltip />
+                            <Legend {...chartLegendProps} />
+                            <Bar dataKey="total" fill={chartSeriesColors.amber} name="Total Reports" radius={[8, 8, 0, 0]} />
+                        </BarChart>
+                    </ResponsiveContainer>
+                </ChartCard>
+                <ChartCard title="LOE Quality Distribution">
+                    <ResponsiveContainer width="100%" height={280}>
+                        <PieChart>
+                            <Pie
+                                data={data.charts.loe_quality_distribution}
+                                dataKey="total"
+                                nameKey="label"
+                                outerRadius={90}
+                                innerRadius={48}
+                                paddingAngle={3}
+                            >
+                                {data.charts.loe_quality_distribution.map((entry, index) => (
+                                    <Cell key={`${entry.label}-${index}`} fill={getLoeQualityColor(entry.label, index)} />
+                                ))}
+                            </Pie>
+                            <Tooltip />
+                            <Legend {...chartLegendProps} />
+                        </PieChart>
+                    </ResponsiveContainer>
+                </ChartCard>
+            </div>
+            <div className="grid gap-6 xl:grid-cols-2">
+                <ChartCard title="Time Off vs Productive LOE Trend">
+                    <ResponsiveContainer width="100%" height={300}>
+                        <AreaChart data={data.charts.time_off_trend}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                            <XAxis dataKey="month" stroke="#94a3b8" />
+                            <YAxis stroke="#94a3b8" />
+                            <Tooltip />
+                            <Legend {...chartLegendProps} />
+                            <Area type="monotone" dataKey="project_percentage" name="Project Work (%)" stackId="1" stroke={chartSeriesColors.teal} fill={chartSeriesColors.teal} fillOpacity={0.3} />
+                            <Area type="monotone" dataKey="time_off_percentage" name="Time Off (%)" stackId="1" stroke={chartSeriesColors.red} fill={chartSeriesColors.red} fillOpacity={0.28} />
+                        </AreaChart>
+                    </ResponsiveContainer>
+                </ChartCard>
+                <ChartCard title="Stream Utilization Mix">
+                    <ResponsiveContainer width="100%" height={300}>
+                        <BarChart data={data.charts.stream_utilization}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                            <XAxis dataKey="stream" stroke="#94a3b8" />
+                            <YAxis stroke="#94a3b8" />
+                            <Tooltip />
+                            <Legend {...chartLegendProps} />
+                            <Bar dataKey="productive_loe" name="Productive LOE (%)" stackId="a" fill={chartSeriesColors.blue} radius={[8, 8, 0, 0]} />
+                            <Bar dataKey="time_off_loe" name="Time Off LOE (%)" stackId="a" fill={chartSeriesColors.red} radius={[8, 8, 0, 0]} />
+                        </BarChart>
+                    </ResponsiveContainer>
+                </ChartCard>
+            </div>
+            <div className="grid gap-6 xl:grid-cols-2">
+                <ChartCard title="Exception Trend">
+                    <ResponsiveContainer width="100%" height={280}>
+                        <AreaChart data={data.charts.exception_trend}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                            <XAxis dataKey="month" stroke="#94a3b8" />
+                            <YAxis stroke="#94a3b8" />
+                            <Tooltip />
+                            <Legend {...chartLegendProps} />
+                            <Area type="monotone" dataKey="exceptions" name="Open Exceptions" stroke={chartSeriesColors.red} fill={chartSeriesColors.red} fillOpacity={0.24} />
+                        </AreaChart>
+                    </ResponsiveContainer>
+                </ChartCard>
+                <ChartCard title="Review Turnaround Trend">
+                    <ResponsiveContainer width="100%" height={280}>
+                        <AreaChart data={data.charts.review_turnaround_trend}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                            <XAxis dataKey="month" stroke="#94a3b8" />
+                            <YAxis stroke="#94a3b8" />
+                            <Tooltip />
+                            <Legend {...chartLegendProps} />
+                            <Area type="monotone" dataKey="avg_hours" name="Average Review Hours" stroke={chartSeriesColors.cyan} fill={chartSeriesColors.cyan} fillOpacity={0.24} />
+                        </AreaChart>
+                    </ResponsiveContainer>
+                </ChartCard>
+            </div>
             <section className="glass-panel rounded-[2rem] p-8">
                 <div className="flex items-start justify-between gap-4">
                     <div>
@@ -998,6 +1471,14 @@ function renderMetricIcon(key) {
             return <ClipboardDocumentListIcon className="h-5 w-5" />;
         case 'missing_submissions':
             return <ExclamationTriangleIcon className="h-5 w-5" />;
+        case 'on_time_submission_rate':
+            return <CheckCircleIcon className="h-5 w-5" />;
+        case 'late_submission_rate':
+            return <ClockIcon className="h-5 w-5" />;
+        case 'average_variance':
+            return <ChartBarIcon className="h-5 w-5" />;
+        case 'approval_turnaround_hours':
+            return <ShieldCheckIcon className="h-5 w-5" />;
         default:
             return <ChartBarIcon className="h-5 w-5" />;
     }
@@ -1319,8 +1800,8 @@ function AdminAllocationsPage() {
             <section className="glass-panel rounded-[2rem] p-8">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
-                        <h2 className="text-2xl font-semibold text-white">Assigned allocations</h2>
-                        <p className="mt-2 text-slate-300">Create and update allocations in a dedicated modal so the list stays focused.</p>
+                        <h2 className="text-2xl font-semibold text-white">Employee Allocation Coverage</h2>
+                        <p className="mt-2 text-slate-300">Review project allocations by employee, spot total assigned capacity quickly, and manage allocation updates.</p>
                     </div>
                     <button className="btn btn-primary flex items-center gap-2" onClick={() => {
                         setEditingId(null);
@@ -1464,12 +1945,14 @@ function AdminReportsPage() {
             <section className="glass-panel rounded-[2rem] p-8">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <h2 className="text-2xl font-semibold text-white">Reporting center</h2>
-                        <p className="mt-2 text-slate-300">Employee monthly summary shows the latest submitted LOE from last month for each employee. User-specific exports are available inside each employee LOE history page.</p>
+                        <h2 className="text-2xl font-semibold text-white">LOE reporting and performance insights</h2>
+                        <p className="mt-2 text-slate-300">Review last month LOE coverage, project-level distribution, compliance trends, missing submissions, time off impact, reviewer performance, and allocation variance from one place. User-specific exports remain available inside each employee LOE history page.</p>
                     </div>
                 </div>
             </section>
 
+            <ReportTable title="Compliance Scorecard" rows={data.compliance_scorecard} />
+            <ReportTable title="System Effectiveness Summary" rows={data.system_effectiveness_summary} />
             <ReportTable
                 title={`Last Month LOEs (${lastMonthReference.format('MMMM YYYY')})`}
                 rows={employeeMonthlyRows}
@@ -1483,6 +1966,10 @@ function AdminReportsPage() {
             />
             <ReportTable title="Project Summary" rows={data.project_summary} />
             <ReportTable title="Missing Submissions" rows={data.missing_submissions} />
+            <ReportTable title="Employee Consistency (Last 6 Months)" rows={data.employee_consistency} />
+            <ReportTable title="Time Off Impact" rows={data.time_off_impact} />
+            <ReportTable title="Reviewer Effectiveness" rows={data.reviewer_effectiveness} />
+            <ReportTable title="Allocation Variance" rows={flattenVarianceRowsForTable(data.allocation_variance)} />
 
             <Modal
                 isOpen={Boolean(selectedMonthlyReport)}
@@ -2423,6 +2910,35 @@ function normalizeLoeEntry(entry) {
     };
 }
 
+function flattenVarianceRowsForTable(rows) {
+    return (rows ?? []).flatMap((row) => (row.rows ?? []).map((variance) => ({
+        employee: row.employee,
+        employee_code: row.employee_code,
+        project: variance.project,
+        allocated_percentage: variance.allocated_percentage,
+        actual_percentage: variance.actual_percentage,
+        variance: variance.variance,
+    })));
+}
+
+function formatMetricValue(key, value) {
+    const numericValue = Number(value);
+
+    if (Number.isNaN(numericValue)) {
+        return value;
+    }
+
+    if (key.includes('rate') || key.includes('variance')) {
+        return formatPercentage(numericValue);
+    }
+
+    if (key.includes('hours')) {
+        return `${numericValue % 1 === 0 ? numericValue.toFixed(0) : numericValue.toFixed(2)}h`;
+    }
+
+    return numericValue;
+}
+
 function formatPercentage(value) {
     const numericValue = Number(value);
 
@@ -2438,8 +2954,18 @@ function formatDisplayValue(header, value) {
         return '';
     }
 
-    if (header.includes('percentage') || header === 'variance') {
+    if (header.includes('percentage') || header.endsWith('_rate') || header.endsWith('_share') || header === 'variance' || header === 'average_total') {
         return formatPercentage(value);
+    }
+
+    if (header.includes('hours')) {
+        const numericValue = Number(value);
+
+        if (Number.isNaN(numericValue)) {
+            return value;
+        }
+
+        return `${numericValue % 1 === 0 ? numericValue.toFixed(0) : numericValue.toFixed(2)} hrs`;
     }
 
     return String(value);

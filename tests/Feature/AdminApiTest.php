@@ -51,8 +51,8 @@ class AdminApiTest extends TestCase
         $response = $this->getJson('/api/admin/dashboard')
             ->assertOk()
             ->assertJsonStructure([
-                'metrics' => ['active_employees', 'active_projects', 'submitted_loe_reports', 'missing_submissions', 'current_allocation_total'],
-                'charts' => ['project_allocation_headcount', 'engagement_distribution', 'submission_trend', 'allocation_vs_actual'],
+                'metrics' => ['active_employees', 'active_projects', 'submitted_loe_reports', 'missing_submissions', 'current_allocation_total', 'on_time_submission_rate', 'late_submission_rate', 'average_variance', 'approval_turnaround_hours'],
+                'charts' => ['project_allocation_headcount', 'engagement_distribution', 'submission_trend', 'allocation_vs_actual', 'submission_status_breakdown', 'loe_quality_distribution', 'time_off_trend', 'stream_utilization', 'review_turnaround_trend', 'exception_trend'],
                 'exceptions',
             ]);
 
@@ -60,6 +60,12 @@ class AdminApiTest extends TestCase
         $this->assertIsArray($response->json('charts.submission_trend'));
         $this->assertIsArray($response->json('charts.engagement_distribution'));
         $this->assertIsArray($response->json('charts.allocation_vs_actual'));
+        $this->assertIsArray($response->json('charts.submission_status_breakdown'));
+        $this->assertIsArray($response->json('charts.loe_quality_distribution'));
+        $this->assertIsArray($response->json('charts.time_off_trend'));
+        $this->assertIsArray($response->json('charts.stream_utilization'));
+        $this->assertIsArray($response->json('charts.review_turnaround_trend'));
+        $this->assertIsArray($response->json('charts.exception_trend'));
         $this->assertIsArray($response->json('exceptions'));
     }
 
@@ -461,6 +467,11 @@ class AdminApiTest extends TestCase
                 'project_summary',
                 'missing_submissions',
                 'allocation_variance',
+                'compliance_scorecard',
+                'employee_consistency',
+                'time_off_impact',
+                'reviewer_effectiveness',
+                'system_effectiveness_summary',
             ]);
 
         $reportsResponse
@@ -472,6 +483,7 @@ class AdminApiTest extends TestCase
             ->assertJsonPath('employee_monthly.0.loe_status_tone', 'critical');
 
         $this->assertSame(40.0, (float) $reportsResponse->json('employee_monthly.0.total_percentage'));
+        $reportsResponse->assertJsonPath('compliance_scorecard.0.period', now()->format('F Y'));
 
         $this->get(sprintf('/api/admin/reports/export?month=%d&year=%d&type=employee-monthly&format=pdf', now()->month, now()->year))
             ->assertOk()

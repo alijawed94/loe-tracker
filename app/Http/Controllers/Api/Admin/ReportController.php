@@ -28,6 +28,11 @@ class ReportController extends Controller
             'project_summary' => $this->reportService->projectSummary($month, $year, $request->validated('project_id')),
             'missing_submissions' => $this->reportService->missingSubmissions($month, $year),
             'allocation_variance' => $this->reportService->allocationVariance($month, $year, $request->validated('user_id')),
+            'compliance_scorecard' => $this->reportService->complianceScorecard($month, $year),
+            'employee_consistency' => $this->reportService->employeeConsistency($month, $year),
+            'time_off_impact' => $this->reportService->timeOffImpact($month, $year),
+            'reviewer_effectiveness' => $this->reportService->reviewerEffectiveness($month, $year),
+            'system_effectiveness_summary' => $this->reportService->systemEffectivenessSummary($month, $year),
         ]);
     }
 
@@ -42,6 +47,11 @@ class ReportController extends Controller
             'project-summary' => ['Project Monthly Summary', collect($this->reportService->projectSummary($month, $year, $request->validated('project_id')))],
             'missing-submissions' => ['Missing Submissions', collect($this->reportService->missingSubmissions($month, $year))],
             'allocation-variance' => ['Allocation Variance', $this->flattenVarianceRows($this->reportService->allocationVariance($month, $year, $request->validated('user_id')))],
+            'compliance-scorecard' => ['Compliance Scorecard', collect($this->reportService->complianceScorecard($month, $year))],
+            'employee-consistency' => ['Employee Consistency', collect($this->reportService->employeeConsistency($month, $year))],
+            'time-off-impact' => ['Time Off Impact', collect($this->reportService->timeOffImpact($month, $year))],
+            'reviewer-effectiveness' => ['Reviewer Effectiveness', collect($this->reportService->reviewerEffectiveness($month, $year))],
+            'system-effectiveness-summary' => ['System Effectiveness Summary', collect($this->reportService->systemEffectivenessSummary($month, $year))],
             default => ['Employee Monthly Summary', $this->flattenMonthlyRows($this->reportService->employeeMonthly($request->validated('user_id')))],
         };
 

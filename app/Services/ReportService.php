@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\LoeReport;
 use App\Models\Project;
 use App\Models\User;
+use App\Support\LoeInsights;
+use App\Support\LoePeriod;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -147,6 +149,233 @@ class ReportService
                 ])->values()->all(),
             ];
         })->values();
+    }
+
+    public function complianceScorecard(int $month, int $year): Collection
+    {
+        $employees = $this->employeeBaseQuery()->with([
+            'loeReports' => fn ($query) => $query->where('month', $month)->where('year', $year),
+        ])->get();
+
+        $reports = $employees->flatMap->loeReports;
+        $submittedReports = $reports->whereIn('status', ['submitted', 'approved']);
+        $onTimeReports = $submittedReports->filter(fn (LoeReport $report) => $this->isSubmittedOnTime($report, $report->user));
+        $lateReports = $submittedReports->reject(fn (LoeReport $report) => $this->isSubmittedOnTime($report, $report->user));
+        $reviewedReports = $reports->filter(fn (LoeReport $report) => ! is_null($report->reviewed_at) && ! is_null($report->submitted_at));
+
+        return collect([[
+            'period' => CarbonImmutable::create($year, $month, 1)->format('F Y'),
+            'employees' => $employees->count(),
+            'submitted' => $submittedReports->count(),
+            'approved' => $reports->where('status', 'approved')->count(),
+            'drafts' => $reports->where('status', 'draft')->count(),
+            'missing' => $employees->count() - $reports->count(),
+            'on_time_rate' => $this->safePercentage($onTimeReports->count(), max($employees->count(), 1)),
+            'late_rate' => $this->safePercentage($lateReports->count(), max($employees->count(), 1)),
+            'approval_turnaround_hours' => round($reviewedReports->avg(fn (LoeReport $report) => $report->submitted_at?->diffInHours($report->reviewed_at)) ?? 0, 2),
+            'pending_reviews' => $reports->where('status', 'submitted')->count(),
+        ]]);
+    }
+
+    public function employeeConsistency(int $month, int $year, int $months = 6): Collection
+    {
+        $periods = collect(range($months - 1, 0))->map(fn ($offset) => CarbonImmutable::create($year, $month, 1)->subMonthsNoOverflow($offset));
+
+        return $this->employeeBaseQuery()
+            ->with([
+                'loeReports' => fn ($query) => $query
+                    ->where(function ($builder) use ($periods) {
+                        $periods->each(function (CarbonImmutable $period) use ($builder) {
+                            $builder->orWhere(fn ($inner) => $inner->where('month', $period->month)->where('year', $period->year));
+                        });
+                    }),
+            ])
+            ->get()
+            ->map(function (User $user) use ($periods) {
+                $reportsByPeriod = $user->loeReports->keyBy(fn (LoeReport $report) => sprintf('%04d-%02d', $report->year, $report->month));
+
+                $missed = 0;
+                $late = 0;
+                $warningMonths = 0;
+                $onTime = 0;
+
+                foreach ($periods as $period) {
+                    $report = $reportsByPeriod->get($period->format('Y-m'));
+
+                    if (! $report) {
+                        $missed++;
+                        continue;
+                    }
+
+                    if ($report->status !== 'draft' && $this->isSubmittedOnTime($report, $user)) {
+                        $onTime++;
+                    }
+
+                    if ($report->status !== 'draft' && ! $this->isSubmittedOnTime($report, $user)) {
+                        $late++;
+                    }
+
+                    if (! empty(LoeInsights::reportWarnings($report, $user))) {
+                        $warningMonths++;
+                    }
+                }
+
+                return [
+                    'employee' => $user->name,
+                    'employee_code' => $user->employee_code,
+                    'stream' => $user->stream_label,
+                    'months_reviewed' => $periods->count(),
+                    'submitted_months' => $user->loeReports->whereIn('status', ['submitted', 'approved'])->count(),
+                    'on_time_months' => $onTime,
+                    'late_months' => $late,
+                    'missed_months' => $missed,
+                    'warning_months' => $warningMonths,
+                    'average_total' => round($user->loeReports->avg('total_percentage') ?? 0, 2),
+                ];
+            })
+            ->values();
+    }
+
+    public function timeOffImpact(int $month, int $year): Collection
+    {
+        return $this->employeeBaseQuery()
+            ->with([
+                'loeReports' => fn ($query) => $query
+                    ->where('month', $month)
+                    ->where('year', $year)
+                    ->with('entries.project'),
+            ])
+            ->get()
+            ->map(function (User $user) {
+                /** @var LoeReport|null $report */
+                $report = $user->loeReports->first();
+                $entries = collect($report?->entries ?? []);
+                $timeOff = $entries->where('entry_type', 'time_off')->sum('percentage');
+                $project = $entries->where('entry_type', 'project')->sum('percentage');
+                $total = (float) ($report?->total_percentage ?? 0);
+
+                return [
+                    'employee' => $user->name,
+                    'employee_code' => $user->employee_code,
+                    'stream' => $user->stream_label,
+                    'report_status' => $report?->status ? str($report->status)->replace('_', ' ')->title()->value() : 'Missing',
+                    'project_percentage' => round($project, 2),
+                    'time_off_percentage' => round($timeOff, 2),
+                    'time_off_share' => $this->safePercentage($timeOff, $total ?: 1),
+                    'total_percentage' => round($total, 2),
+                ];
+            })
+            ->values();
+    }
+
+    public function reviewerEffectiveness(int $month, int $year): Collection
+    {
+        $reports = LoeReport::query()
+            ->with(['reviewer', 'user'])
+            ->where('month', $month)
+            ->where('year', $year)
+            ->get();
+
+        $reviewed = $reports->filter(fn (LoeReport $report) => $report->reviewed_by && $report->submitted_at && $report->reviewed_at);
+        $byReviewer = $reviewed->groupBy('reviewed_by')->map(function (Collection $items) {
+            /** @var LoeReport $sample */
+            $sample = $items->first();
+
+            return [
+                'reviewer' => $sample->reviewer?->name ?? 'Unknown Reviewer',
+                'reviewed_reports' => $items->count(),
+                'avg_turnaround_hours' => round($items->avg(fn (LoeReport $report) => $report->submitted_at?->diffInHours($report->reviewed_at)) ?? 0, 2),
+                'fastest_turnaround_hours' => round($items->min(fn (LoeReport $report) => $report->submitted_at?->diffInHours($report->reviewed_at)) ?? 0, 2),
+                'slowest_turnaround_hours' => round($items->max(fn (LoeReport $report) => $report->submitted_at?->diffInHours($report->reviewed_at)) ?? 0, 2),
+            ];
+        })->values();
+
+        return $byReviewer->push([
+            'reviewer' => 'Pending Review Pool',
+            'reviewed_reports' => $reports->where('status', 'submitted')->count(),
+            'avg_turnaround_hours' => 0,
+            'fastest_turnaround_hours' => 0,
+            'slowest_turnaround_hours' => 0,
+        ]);
+    }
+
+    public function systemEffectivenessSummary(int $month, int $year): Collection
+    {
+        $employees = $this->employeeBaseQuery()->with([
+            'allocations',
+            'loeReports' => fn ($query) => $query
+                ->where('month', $month)
+                ->where('year', $year)
+                ->with('entries'),
+        ])->get();
+
+        $reports = $employees->flatMap->loeReports;
+        $submitted = $reports->whereIn('status', ['submitted', 'approved']);
+        $warningReports = $reports->filter(fn (LoeReport $report) => ! empty(LoeInsights::reportWarnings($report, $report->user)));
+        $varianceAverages = $employees->map(function (User $user) {
+            $report = $user->loeReports->first();
+            if (! $report) {
+                return null;
+            }
+
+            return abs((float) $user->allocations->sum('percentage') - (float) $report->total_percentage);
+        })->filter();
+
+        return collect([
+            [
+                'metric' => 'Submission Rate',
+                'value' => $this->safePercentage($submitted->count(), max($employees->count(), 1)).'%',
+                'insight' => 'Share of employees who moved beyond draft for the selected month.',
+            ],
+            [
+                'metric' => 'On-Time Submission Rate',
+                'value' => $this->safePercentage(
+                    $submitted->filter(fn (LoeReport $report) => $this->isSubmittedOnTime($report, $report->user))->count(),
+                    max($employees->count(), 1)
+                ).'%',
+                'insight' => 'How many employees submitted by their own month-end deadline.',
+            ],
+            [
+                'metric' => 'Warning-Free Reports',
+                'value' => $this->safePercentage(max($reports->count() - $warningReports->count(), 0), max($reports->count(), 1)).'%',
+                'insight' => 'Reports with totals and variance inside acceptable thresholds.',
+            ],
+            [
+                'metric' => 'Average Variance',
+                'value' => round($varianceAverages->avg() ?? 0, 2).'%',
+                'insight' => 'Average gap between allocation totals and actual LOE totals.',
+            ],
+            [
+                'metric' => 'Average Review Turnaround',
+                'value' => round($reports->filter(fn (LoeReport $report) => $report->reviewed_at && $report->submitted_at)->avg(fn (LoeReport $report) => $report->submitted_at?->diffInHours($report->reviewed_at)) ?? 0, 2).' hrs',
+                'insight' => 'Average time taken by admins to approve submitted LOEs.',
+            ],
+        ]);
+    }
+
+    protected function employeeBaseQuery(): Builder
+    {
+        return User::query()
+            ->where('status', true)
+            ->whereHas('roles', fn (Builder $query) => $query->where('name', 'employee'));
+    }
+
+    protected function isSubmittedOnTime(LoeReport $report, ?User $user = null): bool
+    {
+        if (! $report->submitted_at || ! $user) {
+            return false;
+        }
+
+        return $report->submitted_at->lessThanOrEqualTo(LoePeriod::deadline($report->month, $report->year, $user));
+    }
+
+    protected function safePercentage(float|int $value, float|int $total): float
+    {
+        if ($total <= 0) {
+            return 0.0;
+        }
+
+        return round(($value / $total) * 100, 2);
     }
 
     protected function resolveLoeStatus(float $totalPercentage): string
