@@ -237,8 +237,8 @@ function LoginPage({ role, user, onAuth }) {
     };
 
     return (
-        <div className="flex min-h-screen items-center justify-center px-4 py-10">
-            <div className="grid w-full max-w-6xl gap-8 lg:grid-cols-[1.08fr_0.92fr]">
+        <div className="flex min-h-screen items-center justify-center px-3 py-10 md:px-4">
+            <div className="grid w-full max-w-[96rem] gap-8 lg:grid-cols-[1.08fr_0.92fr]">
                 <section className="glass-panel hidden rounded-[2rem] p-8 lg:block xl:p-10">
                     <div className="space-y-5">
                         <span className="inline-flex rounded-full brand-badge px-4 py-2 text-xs uppercase tracking-[0.3em]">
@@ -424,8 +424,8 @@ function ResetPasswordPage({ role }) {
 
 function AuthCard({ eyebrow, title, subtitle, children, footer }) {
     return (
-        <div className="flex min-h-screen items-center justify-center px-4 py-10">
-            <div className="glass-panel w-full max-w-xl rounded-[2rem] p-8 md:p-10">
+        <div className="flex min-h-screen items-center justify-center px-3 py-10 md:px-4">
+            <div className="glass-panel w-full max-w-2xl rounded-[2rem] p-8 md:p-10">
                 <p className="text-sm uppercase tracking-[0.25em] brand-kicker">{eyebrow}</p>
                 <h2 className="mt-3 text-3xl font-semibold text-white">{title}</h2>
                 <p className="mt-3 text-slate-300">{subtitle}</p>
@@ -485,8 +485,8 @@ function Shell({ title, user, navItems, setUser, children }) {
     };
 
     return (
-        <div className="min-h-screen px-4 py-6 md:px-6">
-            <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[260px_1fr]">
+        <div className="min-h-screen px-3 py-6 md:px-4">
+            <div className="mx-auto grid max-w-[96rem] gap-6 lg:grid-cols-[260px_1fr]">
                 <aside className="glass-panel rounded-[2rem] p-6">
                     <div className="mb-10">
                         <p className="text-xs uppercase tracking-[0.3em] brand-kicker">{title}</p>
@@ -827,6 +827,23 @@ function EmployeeDashboardPage({ user }) {
                 </section>
             </div>
 
+            <section className="glass-panel rounded-[2rem] p-6">
+                <div className="flex items-start justify-between gap-4">
+                    <div>
+                        <h3 className="text-xl font-semibold text-white">Quick Insights</h3>
+                        <p className="mt-2 text-slate-300">A simple read on how this month is shaping up.</p>
+                    </div>
+                </div>
+                <div className="mt-5 grid gap-4 md:grid-cols-2">
+                    {data.insights?.map((insight, index) => (
+                        <div className="rounded-3xl border border-white/10 bg-slate-950/25 p-5" key={index}>
+                            <p className="text-sm uppercase tracking-[0.18em] text-slate-400">{insight.title}</p>
+                            <p className="mt-3 text-sm leading-6 text-slate-200">{insight.message}</p>
+                        </div>
+                    ))}
+                </div>
+            </section>
+
             <div className="grid gap-6 xl:grid-cols-2">
                 <ChartCard title="Current Month Breakdown">
                     <ResponsiveContainer width="100%" height={260}>
@@ -872,23 +889,6 @@ function EmployeeDashboardPage({ user }) {
                     </AreaChart>
                 </ResponsiveContainer>
             </ChartCard>
-
-            <section className="glass-panel rounded-[2rem] p-6">
-                <div className="flex items-start justify-between gap-4">
-                    <div>
-                        <h3 className="text-xl font-semibold text-white">Quick Insights</h3>
-                        <p className="mt-2 text-slate-300">A simple read on how this month is shaping up.</p>
-                    </div>
-                </div>
-                <div className="mt-5 grid gap-4 md:grid-cols-2">
-                    {data.insights?.map((insight, index) => (
-                        <div className="rounded-3xl border border-white/10 bg-slate-950/25 p-5" key={index}>
-                            <p className="text-sm uppercase tracking-[0.18em] text-slate-400">{insight.title}</p>
-                            <p className="mt-3 text-sm leading-6 text-slate-200">{insight.message}</p>
-                        </div>
-                    ))}
-                </div>
-            </section>
 
             <Modal
                 isOpen={isModalOpen}
